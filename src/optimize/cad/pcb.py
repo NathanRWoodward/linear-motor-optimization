@@ -1,6 +1,8 @@
 from build123d import *
 from ocp_vscode import show, show_clear
 
+from mesh import generate_mesh
+
 
 def pcb_base(length: float, height: float, thickness: float) -> Part:
     with BuildPart() as part:
@@ -245,7 +247,7 @@ if __name__ == "__main__":
         width=12,
         height=height,
         thickness=0.5,
-        trace_width=8 * MILL_TO_MM,
+        trace_width=16 * MILL_TO_MM,
         trace_space=8 * MILL_TO_MM,
         min_bend_radius=16 * MILL_TO_MM,
         min_inner_gap=0 * MILL_TO_MM,
@@ -256,5 +258,10 @@ if __name__ == "__main__":
         coil = coil_1.moved(Location((i * 13, 0, 0)))
         to_display.append(coil)
 
-    export_step(Compound(children=to_display), "data/pcb_coil.step")
+    scene = Compound(children=to_display)
+    step_filename = "data/pcb_coil.step"
+    export_step(scene, step_filename)
+
+    # generate_mesh(step_filename)
+
     show(to_display)
