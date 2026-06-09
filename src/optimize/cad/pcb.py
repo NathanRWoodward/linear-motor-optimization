@@ -1,3 +1,5 @@
+from enum import Enum
+
 from build123d import *
 from ocp_vscode import show, show_clear
 
@@ -71,6 +73,11 @@ class Vec2:
 
         return Vec2(final_x, final_y)
 
+    def magnitude(self) -> float:
+        import math
+
+        return math.sqrt(self.x**2 + self.y**2)
+
 
 class Rect:
     def __init__(self, min: Vec2, max: Vec2):
@@ -122,6 +129,11 @@ class CoilTurn:
         )
 
 
+class CoilType(Enum):
+    OVAL = 1
+    RECTANGULAR = 2
+
+
 def oval_coil_trace(
     width: float,
     height: float,
@@ -130,48 +142,64 @@ def oval_coil_trace(
     trace_space: float,
     min_bend_radius: float,
     min_inner_gap: float,
+    coil_type: CoilType = CoilType.OVAL,
 ) -> Part:
 
     if min_inner_gap < 2 * min_bend_radius:
         min_inner_gap = 2 * min_bend_radius
 
     min_outside_radius = min_bend_radius + trace_width
-    # Calculate the number of turns that can fit in the given width and height (take the smaller of the two)
-    arc_center_top_left = min_inner_gap / 2
-    num_turns = 0
+    # # Calculate the number of turns that can fit in the given width and height (take the smaller of the two)
+    # arc_outside = (min_inner_gap / 2) + trace_width
+    # num_turns = 0
+    # while True:
+    #     if arc_outside >= width / 2 or arc_outside >= height / 2:
+    #         break
+    #     num_turns += 1
+
+    #     arc_outside += trace_space + trace_width
+
+    # print(f"Turns: {num_turns}")
+
+    inside_radii = [min_bend_radius]
+    outside_radii = [min_outside_radius]
+
+    left_edge = min_inner_gap
+    right_edge = left_edge + trace_width
+
+    step = trace_width + trace_space
+
+    num_turns = 1
+
     while True:
-        arc_center_top_left += trace_width
-        if arc_center_top_left >= width / 2 or arc_center_top_left >= height / 2:
+        next_inside_radius = inside_radii[-1] + step
+        next_outside_radius = outside_radii[-1] + step
+
+        left_edge = right_edge + trace_space
+        right_edge = left_edge + trace_width
+
+        if right_edge * 2 > width or right_edge * 2 > height:
             break
-        arc_center_top_left += trace_space
+
+        inside_radii.append(next_inside_radius)
+        outside_radii.append(next_outside_radius)
         num_turns += 1
 
-    print(f"Turns: {num_turns}")
-
-    # Now that we know the max number of turns, calculate the radius of the outermost bend
-    # distance_to_outer_bend = (
-    #     trace_width / 2 + trace_space * turns + trace_width * (turns - 1) / 2
-    # )
-    # bend_radius_outside = distance_to_outer_bend + min_bend_radius
-
-    inside_radii = [
-        min_bend_radius + i * trace_width + (i - 1) * trace_space
-        for i in range(1, num_turns + 1)
-    ]
-    # Sort outside to inside
     inside_radii = inside_radii[::-1]
-    outside_radii = [r + trace_width for r in inside_radii]
-    centerline_radii = [
-        (in_r + out_r) / 2 for in_r, out_r in zip(inside_radii, outside_radii)
-    ]
+    outside_radii = outside_radii[::-1]
+    # # Sort outside to inside
+    # inside_radii = inside_radii[::-1]
+    # outside_radii = [r + trace_width for r in inside_radii]
+    # centerline_radii = [
+    #     (in_r + out_r) / 2 for in_r, out_r in zip(inside_radii, outside_radii)
+    # ]
 
-    # Draw the arcs of the upper left quadrant of the coil, starting from the outside
     parts = []
 
-    turns = []
+    turns: list[CoilTurn] = []
 
     for i in range(num_turns):
-        if False:
+        if coil_type == CoilType.OVAL:
             if outside_radii[0] * 2 > width or outside_radii[0] * 2 > height:
                 raise ValueError(
                     f"Cannot fit the coil with the given parameters. The outermost bend radius ({outside_radii[0]:.2f} mm) is too large for the width ({width} mm) and height ({height} mm)."
@@ -191,8 +219,6 @@ def oval_coil_trace(
             )
             turn = CoilTurn(arc_centers, min_outside_radius)
             turns.append(turn)
-        # R
-    # turns = [CoilTurn(arc_centers, r) for r in outside_radii]
 
     for index, turn in enumerate(turns):
         with BuildPart() as arc_part:
@@ -200,13 +226,33 @@ def oval_coil_trace(
                 with BuildLine() as line:
 
                     ThreePointArc(*turn.top_left.points)
-                    Line(turn.top_left.points[-1], turn.top_right.points[0])
+
+                    if (
+                        turn.top_left.vec_points[-1] - turn.top_right.vec_points[0]
+                    ).magnitude() > 0.001:
+                        Line(turn.top_left.points[-1], turn.top_right.points[0])
+
                     ThreePointArc(*turn.top_right.points)
-                    Line(turn.top_right.points[-1], turn.bottom_right.points[0])
+
+                    if (
+                        turn.top_right.vec_points[-1] - turn.bottom_right.vec_points[0]
+                    ).magnitude() > 0.001:
+                        Line(turn.top_right.points[-1], turn.bottom_right.points[0])
+
                     ThreePointArc(*turn.bottom_right.points)
-                    Line(turn.bottom_right.points[-1], turn.bottom_left.points[0])
+
+                    if (
+                        turn.bottom_right.vec_points[-1]
+                        - turn.bottom_left.vec_points[0]
+                    ).magnitude() > 0.001:
+                        Line(turn.bottom_right.points[-1], turn.bottom_left.points[0])
+
                     ThreePointArc(*turn.bottom_left.points)
-                    Line(turn.bottom_left.points[-1], turn.top_left.points[0])
+
+                    if (
+                        turn.bottom_left.vec_points[-1] - turn.top_left.vec_points[0]
+                    ).magnitude() > 0.001:
+                        Line(turn.bottom_left.points[-1], turn.top_left.points[0])
 
                 make_face()
 
@@ -242,17 +288,28 @@ if __name__ == "__main__":
     to_display.append(base)
 
     MILL_TO_MM = 25.4 * 0.001
+    CU_OZ_TO_MM = 0.0348
 
     coil_1 = oval_coil_trace(
         width=12,
         height=height,
-        thickness=0.5,
-        trace_width=16 * MILL_TO_MM,
-        trace_space=8 * MILL_TO_MM,
-        min_bend_radius=16 * MILL_TO_MM,
-        min_inner_gap=0 * MILL_TO_MM,
+        thickness=CU_OZ_TO_MM * 10,
+        trace_width=MILL_TO_MM * 16,
+        trace_space=MILL_TO_MM * 8,
+        min_bend_radius=MILL_TO_MM * 8 * 3,
+        min_inner_gap=MILL_TO_MM * 100,
+        coil_type=CoilType.OVAL,
     )
-    # to_display.append(coil_1)
+
+    # coil_1 = oval_coil_trace(
+    #     width=12,
+    #     height=height,
+    #     thickness=CU_OZ_TO_MM * 6,
+    #     trace_width=0.5,
+    #     trace_space=0.5,
+    #     min_bend_radius=0.5,
+    #     min_inner_gap=2,
+    # )
 
     for i in range(1):
         coil = coil_1.moved(Location((i * 13, 0, 0)))
