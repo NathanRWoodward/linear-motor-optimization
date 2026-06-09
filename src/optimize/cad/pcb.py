@@ -252,8 +252,9 @@ if __name__ == "__main__":
     )
     # to_display.append(coil_1)
 
-    for i in range(5):
+    for i in range(1):
         coil = coil_1.moved(Location((i * 13, 0, 0)))
         to_display.append(coil)
 
+    export_step(Compound(children=to_display), "data/pcb_coil.step")
     show(to_display)
