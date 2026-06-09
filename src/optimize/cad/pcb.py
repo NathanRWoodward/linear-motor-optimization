@@ -133,6 +133,7 @@ def oval_coil_trace(
     if min_inner_gap < 2 * min_bend_radius:
         min_inner_gap = 2 * min_bend_radius
 
+    min_outside_radius = min_bend_radius + trace_width
     # Calculate the number of turns that can fit in the given width and height (take the smaller of the two)
     arc_center_top_left = min_inner_gap / 2
     num_turns = 0
@@ -165,16 +166,31 @@ def oval_coil_trace(
     # Draw the arcs of the upper left quadrant of the coil, starting from the outside
     parts = []
 
-    if outside_radii[0] * 2 > width or outside_radii[0] * 2 > height:
-        raise ValueError(
-            f"Cannot fit the coil with the given parameters. The outermost bend radius ({outside_radii[0]:.2f} mm) is too large for the width ({width} mm) and height ({height} mm)."
-        )
+    turns = []
 
-    arc_centers = Rect(
-        min=Vec2(outside_radii[0], outside_radii[0]),
-        max=Vec2(width - outside_radii[0], height - outside_radii[0]),
-    )
-    turns = [CoilTurn(arc_centers, r) for r in outside_radii]
+    for i in range(num_turns):
+        if False:
+            if outside_radii[0] * 2 > width or outside_radii[0] * 2 > height:
+                raise ValueError(
+                    f"Cannot fit the coil with the given parameters. The outermost bend radius ({outside_radii[0]:.2f} mm) is too large for the width ({width} mm) and height ({height} mm)."
+                )
+
+            arc_centers = Rect(
+                min=Vec2(outside_radii[0], outside_radii[0]),
+                max=Vec2(width - outside_radii[0], height - outside_radii[0]),
+            )
+            turn = CoilTurn(arc_centers, outside_radii[i])
+            turns.append(turn)
+        else:
+            tmp = min_outside_radius + i * trace_width + i * trace_space
+            arc_centers = Rect(
+                min=Vec2(tmp, tmp),
+                max=Vec2(width - tmp, height - tmp),
+            )
+            turn = CoilTurn(arc_centers, min_outside_radius)
+            turns.append(turn)
+        # R
+    # turns = [CoilTurn(arc_centers, r) for r in outside_radii]
 
     for index, turn in enumerate(turns):
         with BuildPart() as arc_part:
@@ -231,8 +247,8 @@ if __name__ == "__main__":
         thickness=0.5,
         trace_width=8 * MILL_TO_MM,
         trace_space=8 * MILL_TO_MM,
-        min_bend_radius=0.005,
-        min_inner_gap=58 * MILL_TO_MM,
+        min_bend_radius=16 * MILL_TO_MM,
+        min_inner_gap=0 * MILL_TO_MM,
     )
     # to_display.append(coil_1)
 
