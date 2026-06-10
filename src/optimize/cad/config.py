@@ -6,6 +6,8 @@ class MagnetConfig:
         """Along the direction of motion (X)"""
         self.thickness = 6.35
         """Thickness of the magnet (Y)"""
+        self.debug_labels = True
+        """Whether to add labels to the magnet faces for debugging"""
 
 
 class HalbachConfig(MagnetConfig):

@@ -54,31 +54,32 @@ class CodeReloaderHandler(FileSystemEventHandler):
         os.system("cls" if os.name == "nt" else "clear")
         changed_file = os.path.relpath(event.src_path)
         print(f"[cyan][Hot Reload][/cyan] [yellow]{changed_file}[/yellow]")
-        console
 
-        try:
-            self.run()
-        except Exception:
-            console.print_exception(width=400, extra_lines=3, suppress=[__file__])
+        self.run()
 
     def run(self):
-        start = time.time()
-        modules = list(sys.modules.keys())
-        modules_to_purge = [
-            name
-            for name in modules
-            if name == "workbench" or name.startswith("optimize")
-        ]
+        try:
+            start = time.time()
+            modules = list(sys.modules.keys())
+            modules_to_purge = [
+                name
+                for name in modules
+                if name == "workbench" or name.startswith("optimize")
+            ]
 
-        for mod_name in modules_to_purge:
-            # print(f"Purging module: {mod_name}")
-            del sys.modules[mod_name]  # Forcibly evicts it from memory
+            for mod_name in modules_to_purge:
+                # print(f"Purging module: {mod_name}")
+                del sys.modules[mod_name]  # Forcibly evicts it from memory
 
-        import workbench
+            import workbench
 
-        importlib.reload(workbench)
-        workbench.main()
-        print(f"[cyan][Hot Reload][/cyan] Done in {time.time() - start:.4f} seconds!")
+            importlib.reload(workbench)
+            workbench.main()
+            print(
+                f"[cyan][Hot Reload][/cyan] Done in {time.time() - start:.4f} seconds!"
+            )
+        except Exception:
+            console.print_exception(width=400, extra_lines=3, suppress=[__file__])
 
 
 if __name__ == "__main__":

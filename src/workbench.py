@@ -1,7 +1,7 @@
 from build123d import *
 from optimize.cad.config import DualHalbachConfig
 from optimize.cad.pcb import oval_coil_trace, CoilType
-from optimize.cad.halbach import create_dual_halbach, create_magnet
+from optimize.cad.halbach import create_dual_halbach, create_magnet, create_halbach
 from ocp_vscode import Camera, show, ignore_camera_warnings
 from optimize.constants import *
 
@@ -16,16 +16,20 @@ def main():
 
     halbach_config = DualHalbachConfig()
 
-    halbach_config.count = 2 * 4  # 2 pole pairs
+    halbach_config.count = 3  # 2 pole pairs
 
     halbach_config.length = IN_TO_MM * 1.0
     halbach_config.width = IN_TO_MM * (1 / 4)
-    halbach_config.thickness = IN_TO_MM * (1 / 4)
+    halbach_config.thickness = IN_TO_MM * (1 / 4) * 0.5
 
     # magnet = create_magnet(halbach_config, debug_labels=True)
     # to_display.append(magnet)
-    halbach = create_dual_halbach(halbach_config)
-    to_display.append(halbach)
+
+    single = create_halbach(halbach_config)
+    to_display.append(single)
+
+    # halbach = create_dual_halbach(halbach_config)
+    # to_display.append(halbach)
 
     # coil_1 = oval_coil_trace(
     #     width=12,
