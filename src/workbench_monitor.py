@@ -1,6 +1,7 @@
 import time
 import importlib
 import sys
+import threading
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
@@ -37,7 +38,7 @@ class CodeReloaderHandler(FileSystemEventHandler):
         super().__init__()
         # Keep track of exactly when the last reload happened
         self.last_reload_time = 0
-        self.debounce_window = 1.0
+        self.debounce_window = 2.0
 
     def on_modified(self, event):
         if event.is_directory or not event.src_path.endswith(".py"):

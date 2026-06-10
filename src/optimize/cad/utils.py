@@ -112,63 +112,42 @@ def rotate_position_around_axis(
     return rotated_position
 
 
-def rotate_around_axis(location: Location, axis: Axis, angle: float) -> Location:
-    original = deepcopy(location)
-    # Create a rotation around the specified axis
-    # axis_origin = axis.position
-    # axis_direction = axis.direction
-    # axis_rotation = axis.location.orientation
-    # # Convert the axis rotation to Euler angles
-    # axis_rotation = axis_angle_to_rotation(axis_direction, math.radians(angle))
-    # location_origin = original.position
-    # axis_origin = Vector(1, 0, 0)
-    angle = math.radians(angle)
+def extract_matrix_rotation(matrix: Matrix) -> Rotation:
+    # Extract the upper-left 3x3 rotation part of the matrix
 
-    # Move the location to the origin, apply the rotation, and move it back
+    # Calculate Euler angles from the rotation matrix
+    if abs(matrix[2, 0]) < 1.0:
+        pitch = math.asin(-matrix[2, 0])
+        roll = math.atan2(
+            matrix[2, 1] / math.cos(pitch), matrix[2, 2] / math.cos(pitch)
+        )
+        yaw = math.atan2(matrix[1, 0] / math.cos(pitch), matrix[0, 0] / math.cos(pitch))
+    else:  # Gimbal lock case
+        pitch = math.pi / 2 if matrix[2, 0] <= -1.0 else -math.pi / 2
+        roll = math.atan2(-matrix[1, 2], matrix[1, 1])
+        yaw = 0.0
+
+    return Rotation((math.degrees(roll), math.degrees(pitch), math.degrees(yaw)))
+
+
+def rotate_around_axis(location: Location, axis: Axis, angle_deg: float) -> Location:
+
+    angle_rad = math.radians(angle_deg)
+
+    # Calculate the axis relative to the location's current position
+    axis.position -= location.position
 
     matrix = Matrix()
-    matrix.rotate(axis, angle)
-    print(f"Rotation Matrix:\n{matrix}")
+    matrix.rotate(axis, angle_rad)
 
-    delta_pos = axis.position - original.position
+    orientation_rotation = extract_matrix_rotation(matrix)
 
-    position = Vector(original.position)
-    # position = position + delta_pos
+    # Extract the rotated XYZ position
+    position = matrix.multiply(Vector())
 
-    position = matrix.multiply(position)
+    # Add back the original location's position to get the final rotated position
+    position = position + location.position
 
-    orientation = original.orientation
-    orientation = matrix.multiply(orientation)
-    as_rot = axis_angle_to_rotation(axis.direction, angle)
-    result = Location(position) * as_rot
-    # position = position - delta_pos
+    result = Location(position) * Rotation(location.orientation) * orientation_rotation
 
-    # origin = origin.rotate(axis, math.radians(angle))
-
-    # origin = rotate_position_around_axis(og_pos, axis, angle)
-
-    # axis_rotation = axis_angle_to_rotation(axis.direction, math.radians(angle))
-    # origin *= Location(origin)
-
-    # print(f"Original Position: {og_pos}")
-    print(f"Rotated Position: {position}")
-
-    # rotated_location = matrix * original
-
-    # rotated_location = (
-    #     location * Location(-axis_origin) * axis_rotation * Location(axis_origin)
-    # )
-
-    # report = f"""
-    #             Original: {location}
-    #             --------------
-    #             Axis Origin: {axis.position.to_tuple()}
-    #             Axis Direction: {axis.direction.to_tuple()}
-    #             -------------
-    #             Angle: {angle} degrees
-    #             Resulting Rotation: {axis_rotation.to_tuple()}
-    #             -------------
-    #             Rotated Location: {rotated_location.to_tuple()}
-    #         """
-    # print(inspect.cleandoc(report))
     return result

@@ -2,7 +2,7 @@ from build123d import *
 from optimize.cad.config import DualHalbachConfig
 from optimize.cad.pcb import oval_coil_trace, CoilType
 from optimize.cad.halbach import create_dual_halbach, create_magnet, create_halbach
-from ocp_vscode import Camera, show, ignore_camera_warnings
+from ocp_vscode import Camera, show, ignore_camera_warnings, show_all
 from optimize.constants import *
 
 
@@ -15,12 +15,13 @@ def main():
     to_display = []
 
     halbach_config = DualHalbachConfig()
+    halbach_config.debug_labels = True
 
-    halbach_config.count = 3  # 2 pole pairs
+    halbach_config.count = 4 * 1  # 2 pole pairs
 
     halbach_config.length = IN_TO_MM * 1.0
     halbach_config.width = IN_TO_MM * (1 / 4)
-    halbach_config.thickness = IN_TO_MM * (1 / 4) * 0.5
+    halbach_config.thickness = IN_TO_MM * (1 / 4)
 
     # magnet = create_magnet(halbach_config, debug_labels=True)
     # to_display.append(magnet)
@@ -48,5 +49,6 @@ def main():
 
     scene = Compound(children=to_display)
     step_filename = "data/pcb_coil.step"
-
-    show(scene, progress="", reset_camera=Camera.RESET)
+    # export_step(scene, step_filename)
+    show_all()
+    # show(scene, progress="")
