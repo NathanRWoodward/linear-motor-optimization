@@ -1,9 +1,9 @@
 from enum import Enum
-
 from build123d import *
+
 from ocp_vscode import show, show_clear
 
-from mesh import generate_mesh
+# from optimize.cad.mesh import generate_mesh
 
 
 def pcb_base(length: float, height: float, thickness: float) -> Part:
@@ -266,26 +266,26 @@ def oval_coil_trace(
             extrude(amount=thickness, dir=-Axis.Y.direction)
         parts.append(arc_part.part)
 
-    print(f"Inside Radii: {inside_radii}")
-    print(f"Outside Radii: {outside_radii}")
+    # print(f"Inside Radii: {inside_radii}")
+    # print(f"Outside Radii: {outside_radii}")
 
     return Compound(children=parts, label="Coil Trace")
 
 
-if __name__ == "__main__":
-    show_clear()
+def test():
+    # show_clear()
 
     length = 25.4 * 4
     height = 35.0
 
     to_display = []
 
-    base = pcb_base(
-        length=length,
-        height=height,
-        thickness=1.6,
-    )
-    to_display.append(base)
+    # base = pcb_base(
+    #     length=length,
+    #     height=height,
+    #     thickness=1.6,
+    # )
+    # to_display.append(base)
 
     MILL_TO_MM = 25.4 * 0.001
     CU_OZ_TO_MM = 0.0348
@@ -311,14 +311,18 @@ if __name__ == "__main__":
     #     min_inner_gap=2,
     # )
 
-    for i in range(1):
+    for i in range(15):
         coil = coil_1.moved(Location((i * 13, 0, 0)))
         to_display.append(coil)
 
     scene = Compound(children=to_display)
     step_filename = "data/pcb_coil.step"
-    export_step(scene, step_filename)
+    # export_step(scene, step_filename)
 
     # generate_mesh(step_filename)
 
     show(to_display)
+
+
+if __name__ == "__main__":
+    test()

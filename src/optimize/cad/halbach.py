@@ -1,35 +1,48 @@
 from build123d import *
 from ocp_vscode import show, show_clear
+from functools import singledispatch
+from optimize.cad.config import MagnetConfig, HalbachConfig, DualHalbachConfig
 
 
-def create_magnet(length: float, width: float, thickness: float) -> Part:
+def create_magnet(config: MagnetConfig, debug_labels: bool = True) -> Part:
     with BuildPart() as part:
         with BuildSketch(Plane.YX):
-            Rectangle(length, width, align=(Align.MIN, Align.MIN))
+            Rectangle(config.length, config.width, align=(Align.MIN, Align.MIN))
 
-        extrude(amount=thickness, dir=Axis.Z.direction)
+        extrude(amount=config.thickness, dir=Axis.Z.direction)
+
+        if debug_labels:
+            # extrude text on each of the 4 faces for easier debugging
+            labels = ["N", "E", "S", "W"]
+            face_indexes = [5, 3, 4, 1]
+            all_faces = part.faces()
+            faces = [all_faces[i] for i in face_indexes]
+            for i in range(4):
+                face = faces[i]
+                with BuildSketch(face):
+                    Text(labels[i], font_size=3, align=(Align.CENTER, Align.CENTER))
+                extrude(
+                    amount=-0.01, dir=face.normal_at().to_tuple(), mode=Mode.SUBTRACT
+                )
     return part.part
 
 
-def halback_array(
-    length: float,
-    width: float,
-    thickness: float,
-    count: int,
+def create_halbach(
+    config: HalbachConfig,
     start_offset: int = 0,
 ) -> Compound:
     colors = [(1, 0, 0), (0, 1, 0), (0, 0, 1), (1, 1, 0)]
     labels = ["N", "E", "S", "W"]
     magnets = []
 
-    magnet: Part = create_magnet(length, width, thickness)
+    magnet: Part = create_magnet(config)
     magnet.color = colors[0 + start_offset]
     magnet.label = f"{labels[0 + start_offset]}_1"
     magnets.append(magnet)
 
-    pos = width
+    pos = config.width
     rot = 0
-    for i in range(1, count):
+    for i in range(1, config.count):
 
         axis = Axis((pos, 0, 0), (0, 1, 0))
         loc = Location()
@@ -45,28 +58,23 @@ def halback_array(
         magnets.append(magnet)
 
         if i % 2 == 0:
-            pos += width
+            pos += config.width
         else:
-            pos += thickness
+            pos += config.thickness
         rot += 90
 
     return Compound(children=magnets, label="Halbach Array")
 
 
-def dual_halbach_array(
-    length: float,
-    width: float,
-    thickness: float,
-    count: int,
-    gap: float,
-) -> Compound:
+def create_dual_halbach(config: DualHalbachConfig) -> Compound:
 
-    array_1 = halback_array(length, width, thickness, count, 0)
-    array_1.move(Location((0, (gap / 2) + thickness, 0), (90, 0, 0)))
+    array_1 = create_halbach(config, 0)
+    array_1.move(Location((0, (config.gap / 2) + config.thickness, 0), (90, 0, 0)))
     array_1.label = "Halbach Array 1"
 
-    array_2 = halback_array(length, width, thickness, count, 2)
-    array_2.move(Location((0, -gap / 2, 0), (90, 0, 0)))
+    array_2 = create_halbach(config, 2)
+
+    array_2.move(Location((0, -config.gap / 2, 0), (90, 0, 0)))
     array_2.label = "Halbach Array 2"
 
     return Compound(children=[array_1, array_2], label="Dual Halbach Array")
@@ -75,12 +83,15 @@ def dual_halbach_array(
 if __name__ == "__main__":
     show_clear()
 
-    assembly = dual_halbach_array(
-        length=25.4,
-        width=6.35,
-        thickness=6.35,
-        count=2 * 4,
-        gap=5,
+    assembly = create_dual_halbach(
+        DualHalbachConfig(
+            length=25.4,
+            width=6.35,
+            thickness=6.35,
+            count=2 * 4,
+            gap=5,
+        )
     )
+
     show(assembly)
     # export_step(assembly, "halbach_array.step")
