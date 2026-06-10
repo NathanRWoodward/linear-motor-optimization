@@ -9,7 +9,7 @@ from optimize.cad.utils import *
 
 def create_magnet(config: MagnetConfig) -> Part:
     result: Part
-    with BuildPart() as part:
+    with BuildPart(mode=Mode.PRIVATE) as part:
         with BuildSketch(Plane.YX):
             Rectangle(config.length, config.width, align=(Align.MIN, Align.MIN))
 
@@ -21,15 +21,14 @@ def create_magnet(config: MagnetConfig) -> Part:
 
     if config.debug_labels:
         result.color = (0.5, 0.5, 0.5, 0.0)
-        result._DisplayNode
         all_parts = [result]
 
         # Split the magnet in half and color the two halves differently for easier visualization of the orientation
         top_half, bottom_half = split(
             result, bisect_by=Plane.YX.offset(-config.thickness / 2), keep=Keep.BOTH
         )
-        top_half.color = (0.4, 0, 0)
-        bottom_half.color = (0, 0, 0.4)
+        top_half.color = (0.6, 0.1, 0.1)
+        bottom_half.color = (0.1, 0.1, 0.6)
         all_parts += [top_half, bottom_half]
 
         # extrude text on each of the 4 faces for easier debugging
@@ -39,16 +38,23 @@ def create_magnet(config: MagnetConfig) -> Part:
             {"label": "E", "color": (0, 1, 0), "face": faces[3]},
             {"label": "S", "color": (0, 0, 1), "face": faces[4]},
             {"label": "W", "color": (1, 1, 0), "face": faces[1]},
-            {"label": "↓↓", "color": (1, 1, 1), "face": faces[2]},
-            {"label": "↑↑", "color": (1, 1, 1), "face": faces[0]},
+            {"label": "↓", "color": (1, 1, 1), "face": faces[2]},
+            {"label": "↑", "color": (1, 1, 1), "face": faces[0]},
         ]
+        labels = labels[-2:]
+
+        font_size = min(config.length, config.width)
 
         for label in labels:
             face: Face = label["face"]
-            with BuildPart() as label_part:
-                with BuildSketch(face.offset(0.05)) as label_sketch:
+            with BuildPart(mode=Mode.PRIVATE) as label_part:
+                with BuildSketch(face.offset(0.07), mode=Mode.PRIVATE) as label_sketch:
                     Text(
-                        label["label"], font_size=3, align=(Align.CENTER, Align.CENTER)
+                        label["label"],
+                        font_size=font_size,
+                        font_style=FontStyle.REGULAR,
+                        align=(Align.CENTER, Align.CENTER),
+                        font="Consolas",
                     )
                 # extrude(amount=0.01, dir=face.normal_at().to_tuple())
                 sketch = label_sketch.sketch
@@ -67,7 +73,7 @@ def create_halbach(
 ) -> Compound:
     colors = [(1, 0, 0), (0, 1, 0), (0, 0, 1), (1, 1, 0)]
     labels = ["N", "E", "S", "W"]
-    magnets = []
+    magnets: list[Part] = []
 
     template: Part = create_magnet(config)
 

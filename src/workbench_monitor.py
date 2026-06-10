@@ -7,27 +7,12 @@ from watchdog.events import FileSystemEventHandler
 
 # Preload this so it doesn't get reloaded on every change
 from build123d import *
-from ocp_vscode import show, show_clear
+from ocp_vscode import ignore_camera_warnings, set_defaults, set_port, show, show_clear
 import os
 from rich.console import Console
 from rich import print
 
 console = Console()
-
-# def my_project_entrypoint():
-#     os.system("cls" if os.name == "nt" else "clear")
-#     print("Running my project entrypoint...")
-
-#     importlib.reload(workbench    )
-
-#     workbench .test()
-#     print("Finished running entrypoint.")
-
-
-# # if __name__ == "__main__":
-# #     show_clear()
-# #     # This monitors the current directory ('.') and re-runs the entrypoint function on changes
-# #     run_process("./src/optimize", target=my_project_entrypoint)
 
 
 import workbench
@@ -39,6 +24,7 @@ class CodeReloaderHandler(FileSystemEventHandler):
         # Keep track of exactly when the last reload happened
         self.last_reload_time = 0
         self.debounce_window = 2.0
+        self._running = False
 
     def on_modified(self, event):
         if event.is_directory or not event.src_path.endswith(".py"):
@@ -52,13 +38,17 @@ class CodeReloaderHandler(FileSystemEventHandler):
             return  # Drop the duplicate event silently
         self.last_reload_time = current_time
 
+        if self._running:
+            return  # A run is already in progress
+
         os.system("cls" if os.name == "nt" else "clear")
         changed_file = os.path.relpath(event.src_path)
         print(f"[cyan][Hot Reload][/cyan] [yellow]{changed_file}[/yellow]")
 
-        self.run()
+        threading.Thread(target=self.run, daemon=True).start()
 
     def run(self):
+        self._running = True
         try:
             start = time.time()
             modules = list(sys.modules.keys())
@@ -81,9 +71,23 @@ class CodeReloaderHandler(FileSystemEventHandler):
             )
         except Exception:
             console.print_exception(width=400, extra_lines=3, suppress=[__file__])
+        finally:
+            self._running = False
 
 
 if __name__ == "__main__":
+
+    set_port(3939, host="127.0.0.1")
+    set_defaults(
+        deviation=0.5,  # Default is ~0.1 (Max chordal error)
+        angular_tolerance=0.5,  # Default is ~0.1 (Curve smoothness)
+        edge_accuracy=0.8,  # Lowers precision of rendered edge lines
+        tree_width=300,
+        black_edges=False,
+        render_edges=False,
+    )
+    ignore_camera_warnings()
+
     reloader = CodeReloaderHandler()
 
     observer = Observer()

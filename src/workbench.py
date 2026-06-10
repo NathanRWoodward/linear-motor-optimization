@@ -1,13 +1,23 @@
+import os
+
+os.environ["NATIVE_TESSELLATOR"] = "1"
 from build123d import *
 from optimize.cad.config import DualHalbachConfig
 from optimize.cad.pcb import oval_coil_trace, CoilType
 from optimize.cad.halbach import create_dual_halbach, create_magnet, create_halbach
-from ocp_vscode import Camera, show, ignore_camera_warnings, show_all
+from ocp_vscode import (
+    Camera,
+    Render,
+    set_defaults,
+    set_port,
+    show,
+    ignore_camera_warnings,
+    show_all,
+)
 from optimize.constants import *
 
 
 def main():
-    ignore_camera_warnings()
 
     length = 25.4 * 4
     height = 35.0
@@ -17,7 +27,7 @@ def main():
     halbach_config = DualHalbachConfig()
     halbach_config.debug_labels = True
 
-    halbach_config.count = 4 * 1  # 2 pole pairs
+    halbach_config.count = 4 * 4  # 2 pole pairs
 
     halbach_config.length = IN_TO_MM * 1.0
     halbach_config.width = IN_TO_MM * (1 / 4)
@@ -27,6 +37,7 @@ def main():
     # to_display.append(magnet)
 
     single = create_halbach(halbach_config)
+
     to_display.append(single)
 
     # halbach = create_dual_halbach(halbach_config)
@@ -50,5 +61,5 @@ def main():
     scene = Compound(children=to_display)
     step_filename = "data/pcb_coil.step"
     # export_step(scene, step_filename)
-    show_all()
-    # show(scene, progress="")
+
+    show(to_display, progress="", deviation=99)
