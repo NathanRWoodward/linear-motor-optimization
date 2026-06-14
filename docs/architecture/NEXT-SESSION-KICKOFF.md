@@ -7,8 +7,11 @@ typing backbone), which everything else depends on.
 
 We're implementing the restructure planned in `docs/architecture/`. Read these
 first, in order: `README.md`, `06-typing-and-schema.md`, `04-roadmap.md`. Then
-skim `00-assessment.md` for context. The plan is approved; don't re-litigate the
-design — if you hit something genuinely underspecified, ask before improvising.
+skim `00-assessment.md` for context. (The full set is docs 00–08 covering typing,
+property functions, conditions, validation, boundaries, run lifecycle/provenance,
+and the optimization seam — but Phase 0 below only needs 06 + the roadmap.) The
+plan is approved; don't re-litigate the design — if you hit something genuinely
+underspecified, ask before improvising.
 
 Start with **Phase 0 — Typing backbone & de-duplication** (doc 06). Deliver it as
 one cohesive change with passing tests under `uv run pytest`. Concretely:
@@ -32,7 +35,9 @@ one cohesive change with passing tests under `uv run pytest`. Concretely:
    per-entity bounding-box / center-of-mass extraction into a small reusable
    helper (it'll be reused by the Phase 4 adjacency code). Remove the hardcoded
    `known_materials` list; there should be a single material registry referenced
-   by both stages.
+   by both stages. While here, resolve the `Generator` name collision
+   (`meshing.Generator` vs `elmer.sim.Generator`) — rename to `Mesher` /
+   `SifWriter` or namespace them, since the optimization driver will import both.
 5. Expose `model_json_schema()` access for the config/material models (a small
    function or CLI entry is fine).
 
@@ -62,10 +67,21 @@ as you complete the phase.
 
 ## After Phase 0
 
-Subsequent phases, each its own session/PR (see `04-roadmap.md` for full detail):
+Subsequent phases, each its own session/PR (see `04-roadmap.md` for full detail
+and the dependency graph):
 
-- **Phase 1** — property functions: `Static` → `Calibration` → `ClosedForm` (doc 05).
+- **Phase 1** — property functions: `Static` → `Calibration` → `ClosedForm`
+  (callable form; doc 05).
 - **Phase 2** — `Magnetization` condition; remove the `magnetic_coercivity` hack (doc 02).
 - **Phase 3** — solver validation in CI (doc 03).
 - **Phase 4** — `BoundaryGroup` emission via adjacency (doc 01).
 - **Phase 5** — thermal/electrostatics boundary conditions end-to-end (docs 02+01).
+- **Phase 6** — run lifecycle: `RunManifest` provenance + typed `Result` + run
+  bundles + convergence/caching seam (doc 07). Only needs Phase 0, so it can jump
+  ahead of 4–5 if the optimization track is the priority.
+- **Phase 7** — optimization seam + naive grid search + `Study` tracking (doc 08).
+
+Note the two tracks after Phase 3: the **physics track** (4→5) and the
+**optimization track** (6→7) are independent given Phase 0. If the near-term goal
+is running parameter sweeps on the already-working magnetostatics path, do 6→7
+before 4→5.

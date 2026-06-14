@@ -87,6 +87,30 @@ Every property is a single pint quantity. Real materials are temperature- (and
 otherwise-) dependent. There is no way to express "conductivity as a function of
 temperature" without restructuring the property type. → [05-property-functions.md](05-property-functions.md)
 
+### 6. The run lifecycle is undesigned (this matters because the goal is optimization)
+
+The repo is `linear-motor-optimization`, but the framework only describes a single
+solve. There is no provenance (which inputs produced which result?), no typed
+return path (results are ad-hoc log scraping, à la pyelmer's brittle
+`extract_results_logfile`), no mesh-convergence discipline (the optimized quantity
+— air-gap force — is exactly what's easiest to under-resolve), and no seam for an
+optimizer to plug into. A clean forward path feeding a dirty, untracked back end
+will not survive a parameter sweep. → [07-run-lifecycle.md](07-run-lifecycle.md),
+[08-optimization-seam.md](08-optimization-seam.md)
+
+### Smaller notes (cheap, worth not losing)
+
+- **`Generator` name collision.** `meshing.Generator` and `elmer.sim.Generator`
+  share a name; fine today, confusing in an optimization driver that imports both.
+  Rename to `Mesher` / `SifWriter` (or namespace) — folded into the Phase 0 de-dup.
+- **Units at the boundary, not in the hot loop.** pint quantities are right for the
+  config/authoring surface, but pint arithmetic is slow; an objective evaluated
+  thousands of times must strip to bare SI floats *once* at the pipeline boundary
+  (`to_elmer(at=...)` is the chokepoint) and run the inner loop unitless.
+- **Don't add generality yet.** No plugin system, no "any FEM solver" abstraction,
+  no DSL. One solver, one geometry family. The Protocol-based emitters are the
+  right ceiling until a second real use case forces more.
+
 ## Litmus test: "what does a new solver cost?"
 
 | Scenario | Cost today | After plans land |

@@ -4,9 +4,11 @@ Phased sequencing for the restructure. Each phase is independently committable,
 ships with its tests (pytest is already wired via `uv run pytest`), and leaves
 the pipeline working.
 
-This roadmap was revised to reflect: **typing/schema as the backbone, property
-functions, and validation pulled early** (request sets from the second planning
-round).
+This roadmap was revised across three planning rounds: **typing/schema as the
+backbone, property functions, validation pulled early**, then **run lifecycle
+(provenance + typed results) and an optimization seam** — because the repo's real
+goal is optimizing a motor, and that needs run bookkeeping designed in, not
+bolted on.
 
 ## Dependency graph
 
@@ -17,17 +19,24 @@ Phase 0: Typing backbone + de-dup        (doc 06)  ── foundation for everyth
    │
    ├─► Phase 2: Magnetization condition  (doc 02, body half)
    │
-   ├─► Phase 3: Solver validation        (doc 03)   ← pulled earlier, runs in CI
+   ├─► Phase 3: Solver validation        (doc 03)   ← pulled early, runs in CI
    │
-   └─► Phase 4: BoundaryGroup emission   (doc 01)
-                    │
-                    └─► Phase 5: thermal/electrostatics BCs (docs 02+01)
+   ├─► Phase 4: BoundaryGroup emission   (doc 01)
+   │        │
+   │        └─► Phase 5: thermal/electrostatics BCs (docs 02+01)
+   │
+   └─► Phase 6: Run lifecycle            (doc 07)   ← provenance + typed Result
+            │
+            └─► Phase 7: Optimization seam + grid search (doc 08)
 ```
 
-Phase 0 is new and comes first because the typed/pint-aware `quantity_type` and
-the de-duplication underpin the property functions, the conditions, and the
-validation. Validation (Phase 3) is deliberately early — once the typed config
-exists it is cheap and guards every later phase.
+Phase 0 comes first because the typed/pint-aware `quantity_type` and the
+de-duplication underpin everything. Validation (Phase 3) is deliberately early —
+cheap once the typed config exists, and it guards every later phase. The run
+lifecycle (Phase 6) only needs Phase 0 (it consumes the typed config + the
+existing magnetostatics generator) so it can land before the boundary work if the
+optimization track is the priority. The optimization seam (Phase 7) is the
+consumer that sits on top of a working pipeline + lifecycle.
 
 ---
 
@@ -133,6 +142,42 @@ convection BCs, validated, confirmed by a short solve.
 
 ---
 
+## Phase 6 — Run lifecycle: provenance & typed results
+
+**Doc:** [07-run-lifecycle.md](07-run-lifecycle.md). **Needs:** Phase 0 (typed
+config serializes into the manifest for free). **Independent of Phases 4–5** — it
+wraps the already-working magnetostatics path, so it can be sequenced right after
+the early phases if optimization is the priority.
+
+- `RunManifest`, `Result`, `MeshStats` Pydantic models.
+- Result parser: Elmer `.dat`/log → typed `Result` (commit a small real fixture).
+- `runs/<run_id>/` bundle convention + a thin **driver** (mesh + sif + solve →
+  Result + manifest). The driver is the unit the optimizer calls.
+- `cache_key` / `mesh_key` computed and stored (no skip logic yet).
+- Optional per-region `mesh_size` + a convergence-ladder helper.
+
+**Done when:** one solve produces a self-describing run bundle with a typed,
+unit-carrying `Result`, and the parser is covered by a fixture test (no live
+solver needed).
+
+---
+
+## Phase 7 — Optimization seam + naive grid search
+
+**Doc:** [08-optimization-seam.md](08-optimization-seam.md). **Needs:** Phase 6
+(the driver + typed Result) and Phase 0. **The consumer, built last.**
+
+- `Parameterization` (Pydantic) mapping a parameter point → `MeshingConfig`.
+- `Objective` Protocol + one concrete objective (e.g. maximize net force).
+- `Study` / `StudyRecord` + `to_dataframe()` + `best()`.
+- `GridSearch` walking the grid via the Phase 6 driver, recording every point.
+
+**Done when:** a grid search runs end-to-end, each point producing a tracked
+`StudyRecord` linked to its run bundle, and `Study.to_dataframe()` gives an
+analyzable table. The full seam is proven by a fake-driver test (no solve).
+
+---
+
 ## Cross-cutting: testing strategy
 
 `uv run pytest` is the harness; `tests/` already works. Sandbox/CI can't run the
@@ -151,10 +196,17 @@ PR, each with tests.
 
 ## Out of scope (parking lot)
 
-- N-D calibration interpolation; string-expression closed form; emitting Elmer's
-  native tabular temperature dependency from a `PropertyFunction` (doc 05).
+- N-D calibration interpolation; string-expression closed form (callable form is
+  the locked v1); emitting Elmer's native tabular temperature dependency from a
+  `PropertyFunction` (doc 05).
 - Explicit build123d face labels / bbox overrides for surfaces adjacency can't
   name (doc 01 escape hatch).
 - Transient / harmonic magnetics presets.
 - Full Elmer keyword schema validation (doc 03 non-goal).
 - Coupled magneto-thermal multiphysics (own design pass after Phase 5).
+- Cache skip/reuse execution and mesh-reuse-across-solves (keys computed in
+  Phase 6; acting on them deferred until run counts hurt — doc 07 §4).
+- Adaptive / error-driven remeshing (manual convergence ladder is enough — doc 07 §3).
+- Real optimizers (random / Bayesian / CMA-ES via Optuna/Ax), parallel/distributed
+  execution, and config-file-driven studies (doc 08). Grid search is v1; a generic
+  `Optimizer` abstraction appears only when a second strategy justifies it.

@@ -29,11 +29,14 @@ group, referencing the same integer id and reusing the same name.
 | [04-roadmap.md](04-roadmap.md) | Phased sequencing, dependencies, and per-phase handoff notes | Reference |
 | [05-property-functions.md](05-property-functions.md) | Plan: properties as pint-aware callables (static / calibration / closed-form) | **Planned, not implemented** |
 | [06-typing-and-schema.md](06-typing-and-schema.md) | Plan: Pydantic+Protocol typing backbone, pint schema, de-duplication. The spine. | **Planned, not implemented** |
+| [07-run-lifecycle.md](07-run-lifecycle.md) | Plan: provenance (RunManifest), typed Result, mesh convergence, caching seam | **Planned, not implemented** |
+| [08-optimization-seam.md](08-optimization-seam.md) | Plan: Parameterization/Objective seam + naive grid search + Study tracking | **Planned, not implemented** |
 
 > **Read order for implementers:** [06](06-typing-and-schema.md) (backbone) →
 > [05](05-property-functions.md) → [02](02-conditions-refactor.md) →
-> [03](03-solver-validation.md) → [01](01-boundaries.md). The
-> [roadmap](04-roadmap.md) sequences these as Phases 0–5.
+> [03](03-solver-validation.md) → [01](01-boundaries.md) →
+> [07](07-run-lifecycle.md) → [08](08-optimization-seam.md). The
+> [roadmap](04-roadmap.md) sequences these as Phases 0–7.
 
 ## How to use this folder
 
@@ -62,3 +65,10 @@ phases land.
 - **Material properties are callable.** Every property is a function of zero or
   more pint quantities (static value, calibration points, or closed-form
   formula). See [05-property-functions.md](05-property-functions.md).
+- **A run is a tracked artifact; optimization sits on top.** The repo's goal is
+  optimizing a motor, so provenance (a `RunManifest` + content-addressed run
+  bundles), a typed `Result` return path, and mesh-convergence awareness are
+  designed in ([07](07-run-lifecycle.md)). The optimizer is a thin consumer over
+  a `Parameterization`/`Objective` seam; the first one is a deliberately naive
+  grid search whose job is tracking inputs/outputs for analysis
+  ([08](08-optimization-seam.md)). The pipeline itself stays optimization-ignorant.
