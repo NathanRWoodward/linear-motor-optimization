@@ -69,7 +69,7 @@ def create_halbach(
     material: str = "N52",
 ) -> Compound:
     colors = [(1, 0, 0), (0, 1, 0), (0, 0, 1), (1, 1, 0)]
-    labels = ["N", "E", "S", "W"]
+    labels = ["Mag_N", "Mag_E", "Mag_S", "Mag_W"]
 
     locs = [
         Location(),  # North

@@ -1,9 +1,10 @@
 from ocp_vscode import show
 from build123d import *
 from rich.tree import Tree
+from common.vector import Vec3
 from geometry.config import DualHalbachConfig
-from geometry.halbach import create_dual_halbach
-from meshing.config import MeshingConfig
+from geometry.magnet import create_dual_halbach
+from meshing.config import EntityTag, MeshingConfig
 from meshing.generator import Generator
 from physical.materials.air import Air
 from physical.materials.neodymium import N52
@@ -18,7 +19,7 @@ def main():
     to_display = []
 
     config = DualHalbachConfig()
-    config.debug_labels = False
+    config.debug_labels = True
 
     #  2 *N + 1 to ensure we start and end with opposite horizontal poles
     config.count = 2 * 2 + 1
@@ -32,16 +33,16 @@ def main():
 
     config.gap = 5
 
-    all_materials = {
-        "FasdfsaefdR4": FR4(),
-        "N5dd2": N52(),
-        "Air": Air(),
-    }
-    matTree = Tree(COLORS.H1("Materials"))
-    for mat in all_materials.values():
-        mat.print_tree(matTree)
+    # all_materials = {
+    #     "FasdfsaefdR4": FR4(),
+    #     "N5dd2": N52(),
+    #     "Air": Air(),
+    # }
+    # matTree = Tree(COLORS.H1("Materials"))
+    # for mat in all_materials.values():
+    #     mat.print_tree(matTree)
 
-    print(matTree)
+    # print(matTree)
 
     # magnet = create_magnet(config, debug_labels=True)
     # to_display.append(magnet)
@@ -99,8 +100,21 @@ def main():
 
     mesh_config = MeshingConfig()
     mesh_config.STEP = step_filename
-    mesh_config.materials.append([N52()])
 
-    mesh_gen = Generator(step_filename)
+    mesh_config.materials.append(N52())
+
+    mag_strength = 800000 * U.amp  # A/m, example value for N52 magnet
+    Magnets = {
+        "Mag_N": Vec3(0, 1, 0),
+        "Mag_E": Vec3(1, 0, 0),
+        "Mag_S": Vec3(0, -1, 0),
+        "Mag_W": Vec3(-1, 0, 0),
+    }
+    for name, coercivity in Magnets.items():
+        tag = EntityTag(tag=name)
+        tag.magnetic_coercivity = U.Quantity(coercivity * mag_strength.magnitude, mag_strength.units)
+        mesh_config.tags.append(tag)
+
+    mesh_gen = Generator(mesh_config)
     mesh_gen.print_tree()
     # generate_mesh(step_filename)

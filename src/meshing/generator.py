@@ -1,14 +1,16 @@
 import gmsh
 from rich import print
 from rich.tree import Tree
+from common.utils import COLORS, title
+from meshing.config import MeshingConfig
 from meshing.mesh_entity import MeshEntity
 
 
 class Generator:
-    def __init__(self, step_filename: str):
-        self.input_filename = step_filename
+    def __init__(self, config: MeshingConfig):
+        self.input_filename = config.STEP
 
-        filename_without_extension = step_filename.rsplit(".", 1)[0]
+        filename_without_extension = self.input_filename.rsplit(".", 1)[0]
 
         self.name = filename_without_extension.rsplit("/", 1)[-1]
         self.output_filename = f"{filename_without_extension}.msh"
@@ -30,10 +32,10 @@ class Generator:
 
         self.EntityCounts = len(gmsh.model.getEntities(dim=3))
         print(f"Found {self.EntityCounts} entities in the STEP file.")
-        self.Entities = [MeshEntity(*entity) for entity in gmsh.model.getEntities(dim=3)]
+        self.Entities = [MeshEntity(*entity, config) for entity in gmsh.model.getEntities(dim=3)]
 
     def print_tree(self):
-        tree = Tree(self.name)
+        tree = Tree(COLORS.H1(title(self.name)))
 
         for entity in self.Entities:
             entity.print_tree(tree)

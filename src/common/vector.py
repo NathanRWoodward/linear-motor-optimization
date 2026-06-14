@@ -48,6 +48,12 @@ class Vec2:
 
         return math.sqrt(self.x**2 + self.y**2)
 
+    def __repr__(self):
+        return f"Vec2({self.x}, {self.y})"
+
+    def __str__(self):
+        return f"({self.x:.3f}, {self.y:.3f})"
+
 
 class Rect:
     def __init__(self, min: Vec2, max: Vec2):
@@ -104,6 +110,19 @@ class Vec3:
         import math
 
         return math.sqrt(self.x**2 + self.y**2 + self.z**2)
+
+    def __repr__(self):
+        return f"Vec3({self.x}, {self.y}, {self.z})"
+
+    def __str__(self):
+        return repr(self)
+
+    def __format__(self, format_spec):
+        if format_spec.endswith("~"):
+            format_spec = format_spec[:-1]
+            return f"({format(self.x, format_spec)}, {format(self.y, format_spec)}, {format(self.z, format_spec)})"
+        else:
+            return f"({format(self.x, format_spec)}, {format(self.y, format_spec)}, {format(self.z, format_spec)})"
 
 
 class Box:

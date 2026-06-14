@@ -7,7 +7,7 @@ class COLORS:
     """For use in rich console output. Not for physical materials."""
 
     PROPERTY_NAME = "bright_cyan"
-    PROPERTY_VALUE = "cyan"
+    PROPERTY_VALUE = "#FFB86D"
 
     MAGNITUDE = "#FFB86C"
     UNITS = "#E1E446"
