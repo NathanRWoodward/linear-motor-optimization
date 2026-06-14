@@ -27,7 +27,7 @@ class EntityTag:
             report.add(COLORS.Prop("Fixed Heat Flux", f"{self.fixed_heat_flux} W/m²"))
 
         if self.magnetic_coercivity is not None:
-            report.add(COLORS.Prop("Magnetic Coercivity", f"{self.magnetic_coercivity} A/m"))
+            report.add(COLORS.Prop("Magnetic Coercivity", f"{self.magnetic_coercivity}"))
 
 
 class MeshingConfig:

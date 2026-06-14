@@ -45,7 +45,10 @@ class RichEngineeringFormatter(Formatter):
         spec = spec or self.default_format
         if "#" in spec:
             spec = spec.replace("#", "")
-            obj = quantity.to_compact()
+            try:
+                obj = quantity.to_compact()
+            except Exception:
+                obj = quantity
         else:
             obj = quantity
         sub_fmt = self.get_formatter(spec)

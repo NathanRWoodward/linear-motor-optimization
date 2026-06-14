@@ -103,7 +103,7 @@ def main():
 
     mesh_config.materials.append(N52())
 
-    mag_strength = 800000 * U.amp  # A/m, example value for N52 magnet
+    mag_strength = 800000 * (U.amp / U.meter)  # A/m, example value for N52 magnet
     Magnets = {
         "Mag_N": Vec3(0, 1, 0),
         "Mag_E": Vec3(1, 0, 0),

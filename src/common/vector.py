@@ -124,6 +124,9 @@ class Vec3:
         else:
             return f"({format(self.x, format_spec)}, {format(self.y, format_spec)}, {format(self.z, format_spec)})"
 
+    def __rich__(self) -> str:
+        return f"([red]{self.x:.3f}[/red], [green]{self.y:.3f}[/green], [blue]{self.z:.3f}[/blue])"
+
 
 class Box:
     def __init__(self, min: Vec3, max: Vec3):
