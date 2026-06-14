@@ -1,19 +1,37 @@
-"""first_tag_value / EntityTag.overrides — the dedup utility for tag lookups."""
+"""conditions_for — the dedup utility that resolves which conditions of a given
+(physics, target) apply to a region's tags."""
 
 from common.vector import Vec3
-from meshing.config import EntityTag, first_tag_value
+from elmer.physics import Physics
+from meshing.config import EntityTag, conditions_for
+from physical.conditions import ConditionTarget, FixedTemperature, Magnetization
 
 
-def test_first_tag_value_finds_first_non_none() -> None:
-    tags = [EntityTag(tag="a"), EntityTag(tag="b", fixed_temperature="300 K")]
-    assert first_tag_value(tags, "fixed_temperature") is not None
-    assert first_tag_value(tags, "fixed_heat_flux") is None
-    assert first_tag_value([], "fixed_temperature") is None
+def test_conditions_for_filters_by_physics_and_target() -> None:
+    tags = [
+        EntityTag(tag="Mag_N", conditions=[Magnetization(direction=Vec3(0, 1, 0))]),
+        EntityTag(tag="Hot", conditions=[FixedTemperature(value="350 K")]),
+    ]
+    body_mag = conditions_for(tags, Physics.MAGNETOSTATICS, ConditionTarget.BODY)
+    assert len(body_mag) == 1 and isinstance(body_mag[0], Magnetization)
+
+    bnd_thermal = conditions_for(tags, Physics.THERMAL, ConditionTarget.BOUNDARY)
+    assert len(bnd_thermal) == 1 and isinstance(bnd_thermal[0], FixedTemperature)
+
+    # No magnetostatics boundary conditions exist in this set.
+    assert conditions_for(tags, Physics.MAGNETOSTATICS, ConditionTarget.BOUNDARY) == []
 
 
-def test_overrides_yields_only_set_fields() -> None:
-    t = EntityTag(tag="Mag_N", magnetization_direction=Vec3(0, 1, 0), fixed_temperature="300 K")
-    fields = {field for field, _label, _value in t.overrides()}
-    assert fields == {"magnetization_direction", "fixed_temperature"}
-    # an empty tag yields nothing
-    assert list(EntityTag(tag="x").overrides()) == []
+def test_conditions_for_aggregates_across_tags() -> None:
+    # Multiple tags on a region each contributing a matching condition.
+    tags = [
+        EntityTag(tag="a", conditions=[Magnetization(direction=Vec3(1, 0, 0))]),
+        EntityTag(tag="b", conditions=[Magnetization(direction=Vec3(0, 1, 0))]),
+    ]
+    found = conditions_for(tags, Physics.MAGNETOSTATICS, ConditionTarget.BODY)
+    assert len(found) == 2
+
+
+def test_conditions_for_empty() -> None:
+    assert conditions_for([], Physics.MAGNETOSTATICS, ConditionTarget.BODY) == []
+    assert conditions_for([EntityTag(tag="x")], Physics.THERMAL, ConditionTarget.BOUNDARY) == []

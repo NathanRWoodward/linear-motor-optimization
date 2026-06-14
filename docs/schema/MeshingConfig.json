@@ -1,5 +1,51 @@
 {
   "$defs": {
+    "ConditionTarget": {
+      "description": "Whether a condition attaches to a 3D body or a 2D boundary.\n\nA fixed vocabulary, so it is an enum rather than a bare ``\"body\"`` /\n``\"boundary\"`` string (doc 06, \"no magic words\"): autocomplete shows the\nlegal values and a typo is a static error.",
+      "enum": [
+        "body",
+        "boundary"
+      ],
+      "title": "ConditionTarget",
+      "type": "string"
+    },
+    "Convection": {
+      "description": "Convective (Newton-cooling) boundary condition (thermal, boundary target).\n\nCarries both the heat-transfer coefficient *and* the external temperature it\nexchanges with \u2014 together they fully specify the boundary, which a lone\ncoefficient could not.",
+      "properties": {
+        "physics": {
+          "$ref": "#/$defs/Physics",
+          "default": "thermal"
+        },
+        "target": {
+          "$ref": "#/$defs/ConditionTarget",
+          "default": "boundary"
+        },
+        "kind": {
+          "const": "convection",
+          "default": "convection",
+          "title": "Kind",
+          "type": "string"
+        },
+        "coefficient": {
+          "description": "Convective heat-transfer coefficient (W/m^2/K).",
+          "title": "Coefficient",
+          "type": "string",
+          "x-unit-dimensionality": "[power]/[length]**2/[temperature]"
+        },
+        "ext_temperature": {
+          "description": "External (ambient) temperature (K) the boundary exchanges with.",
+          "title": "Ext Temperature",
+          "type": "string",
+          "x-unit-dimensionality": "[temperature]"
+        }
+      },
+      "required": [
+        "coefficient",
+        "ext_temperature"
+      ],
+      "title": "Convection",
+      "type": "object"
+    },
     "ElectricalProperties": {
       "properties": {
         "conductivity": {
@@ -67,90 +113,105 @@
       "type": "object"
     },
     "EntityTag": {
-      "description": "A per-region override matched to a mesh entity by name.\n\nCarries information that is not a material property but still needs to reach\nthe solver for a specific region: a magnetization direction for a magnet\nblock, a fixed boundary temperature, etc.\n\nNote on magnetization: the magnitude |M| = Br/mu0 is a material property;\nonly the direction is per-region (the same N52 block points N/E/S/W depending\non its Halbach slot). So this carries a `magnetization_direction` unit\nvector, replacing the earlier hack of riding direction on\n`magnetic_coercivity`. The full composable-condition model arrives in Phase 2.",
+      "description": "A per-region override matched to a mesh entity by name.\n\nCarries information that is not a material property but still needs to reach\nthe solver for a specific region, as a list of composable, self-describing\n`conditions` (doc 02): a `Magnetization` body force for a magnet block, a\n`FixedTemperature` boundary, etc. Each condition knows its physics, its\nbody/boundary target, and how to emit its own Elmer keywords \u2014 so a region\ncarries only the conditions it actually has, with no flat bag of optional\nscalars.",
       "properties": {
         "tag": {
           "default": "",
           "title": "Tag",
           "type": "string"
         },
-        "magnetization_direction": {
-          "anyOf": [
-            {
-              "description": "3D vector {x, y, z}",
-              "properties": {
-                "x": {
-                  "type": "number"
-                },
-                "y": {
-                  "type": "number"
-                },
-                "z": {
-                  "type": "number"
-                }
+        "conditions": {
+          "description": "Composable, self-describing conditions (body forces / boundary conditions) this region carries.",
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "convection": "#/$defs/Convection",
+                "fixed_temperature": "#/$defs/FixedTemperature",
+                "heat_flux": "#/$defs/HeatFlux",
+                "magnetization": "#/$defs/Magnetization"
               },
-              "required": [
-                "x",
-                "y",
-                "z"
-              ],
-              "type": "object"
+              "propertyName": "kind"
             },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Unit vector giving the magnetization direction for a magnet region.",
-          "title": "Magnetization Direction"
-        },
-        "fixed_temperature": {
-          "anyOf": [
-            {
-              "description": "pint quantity with dimensionality [temperature]",
-              "type": "string",
-              "x-unit-dimensionality": "[temperature]"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Fixed temperature (K) boundary value",
-          "title": "Fixed Temperature"
-        },
-        "fixed_heat_flux": {
-          "anyOf": [
-            {
-              "description": "pint quantity with dimensionality [power]/[length]**2",
-              "type": "string",
-              "x-unit-dimensionality": "[power]/[length]**2"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Fixed heat flux (W/m^2) boundary value",
-          "title": "Fixed Heat Flux"
-        },
-        "convection_coefficient": {
-          "anyOf": [
-            {
-              "description": "pint quantity with dimensionality [power]/[length]**2/[temperature]",
-              "type": "string",
-              "x-unit-dimensionality": "[power]/[length]**2/[temperature]"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Convective heat transfer coefficient for a convection boundary",
-          "title": "Convection Coefficient"
+            "oneOf": [
+              {
+                "$ref": "#/$defs/Magnetization"
+              },
+              {
+                "$ref": "#/$defs/FixedTemperature"
+              },
+              {
+                "$ref": "#/$defs/HeatFlux"
+              },
+              {
+                "$ref": "#/$defs/Convection"
+              }
+            ]
+          },
+          "title": "Conditions",
+          "type": "array"
         }
       },
       "title": "EntityTag",
+      "type": "object"
+    },
+    "FixedTemperature": {
+      "description": "Dirichlet temperature boundary condition (thermal, boundary target).",
+      "properties": {
+        "physics": {
+          "$ref": "#/$defs/Physics",
+          "default": "thermal"
+        },
+        "target": {
+          "$ref": "#/$defs/ConditionTarget",
+          "default": "boundary"
+        },
+        "kind": {
+          "const": "fixed_temperature",
+          "default": "fixed_temperature",
+          "title": "Kind",
+          "type": "string"
+        },
+        "value": {
+          "description": "Fixed temperature (K) imposed on the boundary.",
+          "title": "Value",
+          "type": "string",
+          "x-unit-dimensionality": "[temperature]"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "FixedTemperature",
+      "type": "object"
+    },
+    "HeatFlux": {
+      "description": "Prescribed heat flux boundary condition (thermal, boundary target).",
+      "properties": {
+        "physics": {
+          "$ref": "#/$defs/Physics",
+          "default": "thermal"
+        },
+        "target": {
+          "$ref": "#/$defs/ConditionTarget",
+          "default": "boundary"
+        },
+        "kind": {
+          "const": "heat_flux",
+          "default": "heat_flux",
+          "title": "Kind",
+          "type": "string"
+        },
+        "value": {
+          "description": "Heat flux (W/m^2) through the boundary.",
+          "title": "Value",
+          "type": "string",
+          "x-unit-dimensionality": "[power]/[length]**2"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "HeatFlux",
       "type": "object"
     },
     "MagneticProperties": {
@@ -202,6 +263,51 @@
         }
       },
       "title": "MagneticProperties",
+      "type": "object"
+    },
+    "Magnetization": {
+      "description": "Permanent-magnet body force (magnetostatics, body target).\n\nThe *direction* is per-region (in a Halbach array the same N52 block points\nN/E/S/W depending on its slot) and lives here; the *magnitude*\n``|M| = B\u1d63/\u03bc\u2080`` is a material property and is passed into ``to_elmer`` by the\ngenerator. ``direction`` need not be a unit vector \u2014 ``to_elmer`` normalizes\nit (via :meth:`Vec3.normalized`) before scaling, so authoring an\naxis-aligned ``Vec3(0, 1, 0)`` or a raw ``Vec3(0, 2, 0)`` gives the same\nresult.",
+      "properties": {
+        "physics": {
+          "$ref": "#/$defs/Physics",
+          "default": "magnetostatics"
+        },
+        "target": {
+          "$ref": "#/$defs/ConditionTarget",
+          "default": "body"
+        },
+        "kind": {
+          "const": "magnetization",
+          "default": "magnetization",
+          "title": "Kind",
+          "type": "string"
+        },
+        "direction": {
+          "description": "Magnetization direction (normalized before use); magnitude comes from the material.",
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            },
+            "z": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "x",
+            "y",
+            "z"
+          ],
+          "title": "Direction",
+          "type": "object"
+        }
+      },
+      "required": [
+        "direction"
+      ],
+      "title": "Magnetization",
       "type": "object"
     },
     "MaterialProperties": {
@@ -297,6 +403,17 @@
       },
       "title": "MechanicalProperties",
       "type": "object"
+    },
+    "Physics": {
+      "description": "Which physics preset the sif writer wires.\n\nThe string values match the keys of ``PHYSICS_PRESETS`` in ``elmer.sim`` and\nthe historical ``physics=\"magnetostatics\"`` spelling, so existing configs and\nserialized data keep working \u2014 but callers now pass ``Physics.MAGNETOSTATICS``\nand get IDE completion + validation.",
+      "enum": [
+        "magnetostatics",
+        "thermal",
+        "electrostatics",
+        "linear_elasticity"
+      ],
+      "title": "Physics",
+      "type": "string"
     },
     "ThermalProperties": {
       "properties": {

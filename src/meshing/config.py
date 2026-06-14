@@ -1,76 +1,55 @@
-from typing import Any, Iterable, Iterator, Optional
+from typing import Iterable
 
 from pydantic import BaseModel, ConfigDict, Field
 from rich.tree import Tree
 
 from common.utils import COLORS
-from common.vector import Vec3, Vec3Field
+from elmer.physics import Physics
+from physical.conditions import Condition, ConditionTarget, ConditionUnion
 from physical.materials.properties import MaterialProperties
-from physical.units import HeatFlux, HeatTransferCoefficient, Temperature
 
 
-def first_tag_value(tags: Iterable["EntityTag"], field: str) -> Optional[Any]:
-    """Return the first non-None value of ``field`` across ``tags``, or None.
+def conditions_for(tags: Iterable["EntityTag"], physics: Physics, target: ConditionTarget) -> list[Condition]:
+    """Resolve the conditions of a given (physics, target) that apply to a region.
 
-    Replaces the repeated ``getattr(tag, field, None) is not None`` lookup so the
-    "find the override a region carries" logic lives in one place.
+    Gathers every tag's ``conditions`` and keeps only those matching ``physics``
+    and ``target``. This is the uniform "find the conditions a region carries"
+    lookup the sif writer's per-physics wiring uses, so the filter lives in one
+    place rather than being re-derived at each call site.
     """
+    matching: list[Condition] = []
     for tag in tags:
-        value: Any = getattr(tag, field, None)
-        if value is not None:
-            return value
-    return None
+        for condition in tag.conditions:
+            if condition.physics == physics and condition.target == target:
+                matching.append(condition)
+    return matching
 
 
 class EntityTag(BaseModel):
     """A per-region override matched to a mesh entity by name.
 
     Carries information that is not a material property but still needs to reach
-    the solver for a specific region: a magnetization direction for a magnet
-    block, a fixed boundary temperature, etc.
-
-    Note on magnetization: the magnitude |M| = Br/mu0 is a material property;
-    only the direction is per-region (the same N52 block points N/E/S/W depending
-    on its Halbach slot). So this carries a `magnetization_direction` unit
-    vector, replacing the earlier hack of riding direction on
-    `magnetic_coercivity`. The full composable-condition model arrives in Phase 2.
+    the solver for a specific region, as a list of composable, self-describing
+    `conditions` (doc 02): a `Magnetization` body force for a magnet block, a
+    `FixedTemperature` boundary, etc. Each condition knows its physics, its
+    body/boundary target, and how to emit its own Elmer keywords — so a region
+    carries only the conditions it actually has, with no flat bag of optional
+    scalars.
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     tag: str = ""
 
-    magnetization_direction: Optional[Vec3Field] = Field(
-        default=None,
-        description="Unit vector giving the magnetization direction for a magnet region.",
+    conditions: list[ConditionUnion] = Field(
+        default_factory=list,
+        description="Composable, self-describing conditions (body forces / boundary conditions) this region carries.",
     )
-
-    fixed_temperature: Optional[Temperature] = Field(default=None, description="Fixed temperature (K) boundary value")
-    fixed_heat_flux: Optional[HeatFlux] = Field(default=None, description="Fixed heat flux (W/m^2) boundary value")
-    convection_coefficient: Optional[HeatTransferCoefficient] = Field(
-        default=None, description="Convective heat transfer coefficient for a convection boundary"
-    )
-
-    # (field name, human label) for the overrides this tag can carry. Used by
-    # print_tree and overrides() so the set lives in one place.
-    _OVERRIDE_FIELDS: tuple[tuple[str, str], ...] = (
-        ("magnetization_direction", "Magnetization Direction"),
-        ("fixed_temperature", "Fixed Temperature"),
-        ("fixed_heat_flux", "Fixed Heat Flux"),
-        ("convection_coefficient", "Convection Coefficient"),
-    )
-
-    def overrides(self) -> Iterator[tuple[str, str, Any]]:
-        """Yield (field, label, value) for each override that is set (non-None)."""
-        for field, label in self._OVERRIDE_FIELDS:
-            value: Any = getattr(self, field)
-            if value is not None:
-                yield field, label, value
 
     def print_tree(self, tree: Tree) -> None:
         report: Tree = tree.add(COLORS.H2(f"Tag: {self.tag}"))
-        for _field, label, value in self.overrides():
-            report.add(COLORS.Prop(label, f"{value}"))
+        for condition in self.conditions:
+            report.add(COLORS.Prop(type(condition).__name__, f"{condition}"))
 
 
 class MeshingConfig(BaseModel):

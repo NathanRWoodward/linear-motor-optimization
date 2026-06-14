@@ -64,11 +64,10 @@ These are project preferences. New code (and reviews) should hold to them.
   manual component division. If a vector operation is missing, add it to the
   `Vec3` class so every call site shares one implementation.
 
-- **Factor out repeated patterns into utilities.** Don't copy-paste logic like
-  `if getattr(tag, "field", None) is not None: ...` across call sites. The
-  per-region override lookup lives in `meshing.config.first_tag_value(tags,
-  field)` (and `EntityTag.overrides()` for iterating set values); reuse those
-  instead of re-deriving the pattern.
+- **Factor out repeated patterns into utilities.** Don't copy-paste a
+  filter-the-tags loop across call sites. Resolving which conditions a region
+  carries lives in `meshing.config.conditions_for(tags, physics, target)`; reuse
+  it instead of re-deriving the per-(physics, target) filter.
 
 - **No magic words.** Fixed vocabularies are `Enum`/`Literal` (e.g.
   `elmer.physics.Physics`), discoverable by autocomplete and checked statically —

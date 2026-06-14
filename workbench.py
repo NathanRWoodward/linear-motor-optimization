@@ -7,6 +7,7 @@ from geometry.config import DualHalbachConfig
 from geometry.magnet import create_dual_halbach
 from meshing.config import EntityTag, MeshingConfig
 from meshing.generator import Mesher
+from physical.conditions import Magnetization
 from physical.materials.air import Air
 from physical.materials.neodymium import N52
 from physical.units import U
@@ -59,7 +60,7 @@ def main():
     }
 
     for name, direction in Magnets.items():
-        tag = EntityTag(tag=name, magnetization_direction=direction)
+        tag = EntityTag(tag=name, conditions=[Magnetization(direction=direction)])
         mesh_config.tags.append(tag)
 
     mesh_gen = Mesher(mesh_config)

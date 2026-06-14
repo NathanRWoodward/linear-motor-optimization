@@ -109,17 +109,41 @@ yields the right SI float for each. Tests in `tests/physical/` pass.
 
 ## Phase 2 — Magnetization as a condition
 
+**Status: ✅ COMPLETE (body half).** Landed with 143 passing tests. The
+magnetostatics smoke sif is equivalent through the new condition path.
+
 **Doc:** [02-conditions-refactor.md](02-conditions-refactor.md) (body half).
 **Needs:** Phase 0. **Why here:** self-contained, removes the
 `magnetic_coercivity`-as-direction hack, establishes the `Condition.to_elmer()`
 pattern boundaries will reuse.
 
-- `Condition` base + `Magnetization` (Pydantic, typed direction).
-- `EntityTag.conditions`; deprecate the scalar shim fields.
-- `_wire_magnet_body` consumes a `Magnetization` condition.
+- Added `src/physical/conditions.py`: `Condition` Pydantic base carrying
+  `physics: Physics` and `target: ConditionTarget` (an enum, no magic words),
+  plus `Magnetization` (typed `direction: Vec3Field`, `to_elmer(magnitude)`
+  normalizes via `Vec3.normalized()` then scales) and the thermal data carriers
+  `FixedTemperature` / `HeatFlux` / `Convection` (data + round-trip tests only —
+  not yet emitted; the boundary loop is Phase 5).
+- Each subclass carries a `kind` discriminator and the polymorphic list is a
+  Pydantic discriminated union (`ConditionUnion`), so `EntityTag.conditions`
+  round-trips through `model_dump()`/`model_validate()` and exports clean JSON
+  schema.
+- `EntityTag` now carries **only** `tag` + `conditions: list[ConditionUnion]`.
+  The interim Phase-0 scalar shim fields (`magnetization_direction`,
+  `fixed_temperature`, `fixed_heat_flux`, `convection_coefficient`) and the
+  helpers that served them (`first_tag_value`, `EntityTag.overrides()` /
+  `_OVERRIDE_FIELDS`) were **removed outright** — greenfield, one way to author a
+  region's physics. `conditions_for(tags, physics, target)` is the uniform lookup.
+- `_wire_magnet_body` consumes a `Magnetization` condition via `conditions_for`;
+  the bespoke `_magnetization_direction` helper is gone.
+
+**Parking lot (deferred):** the *boundary* half — the condition-driven
+`elmer.Boundary` loop and deleting the `_wire_thermal_body` stub (now a documented
+no-op, since thermal conditions are boundary-target) — needs the Phase 4
+`BoundaryGroup`s and lands in Phase 5. The thermal condition classes exist now
+but are not emitted.
 
 **Done when:** the dual-Halbach smoke sif is equivalent (cleaner direction
-source) and nothing reads `magnetic_coercivity` as a direction.
+source) and nothing reads `magnetic_coercivity` as a direction. ✅
 
 ---
 

@@ -31,9 +31,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Mapping
 
-from common.vector import Vec3
 from elmer.physics import Physics
-from meshing.config import EntityTag, MeshingConfig, first_tag_value
+from meshing.config import MeshingConfig, conditions_for
+from physical.conditions import ConditionTarget, Magnetization
 from physical.units import U, Quantity
 import pyelmer.elmer as elmer
 
@@ -320,70 +320,51 @@ class SifWriter:
         """Attach a permanent-magnet Body Force if this region is a magnet.
 
         The magnetization magnitude |M| = Br/mu0 comes from the material. The
-        *direction* is per-region and comes from the mesh tag's
-        `magnetization_direction` Vec3: in a Halbach array the same N52 block
-        points N/E/S/W depending on its slot, and that orientation is encoded in
-        the build123d part name and surfaced via the EntityTag. Air / PCB regions
+        *direction* is per-region and is carried by a `Magnetization` condition on
+        the mesh tag: in a Halbach array the same N52 block points N/E/S/W
+        depending on its slot, and that orientation is encoded in the build123d
+        part name and surfaced via the EntityTag's conditions. Air / PCB regions
         have no remanence and get no body force.
+
+        This is the uniform condition path: resolve the body-target
+        magnetostatics conditions for the region and let the `Magnetization`
+        condition emit its own Elmer keywords, rather than reading a scalar field
+        and open-coding the vector math here.
         """
         if not group.material.is_magnet:
             return
 
         magnitude: float = group.material.magnetic.magnetization_magnitude(at=self.operating_point)  # A/m
 
-        direction: Vec3 | None = self._magnetization_direction(group)
-        if direction is None:
-            # Material is a magnet but no orientation tag was found. Emit a
+        conditions: list[Magnetization] = [
+            c for c in conditions_for(group.tags, Physics.MAGNETOSTATICS, ConditionTarget.BODY) if isinstance(c, Magnetization)
+        ]
+        magnetization: Magnetization | None = conditions[0] if conditions else None
+        if magnetization is None or magnetization.direction.magnitude() == 0:
+            # Material is a magnet but no (usable) orientation was found. Emit a
             # commented marker rather than silently producing a zero field.
             body.data.update({"! Magnetization": "MISSING DIRECTION TAG"})
             return
 
-        mx: float = magnitude * direction.x
-        my: float = magnitude * direction.y
-        mz: float = magnitude * direction.z
         force: elmer.BodyForce = elmer.BodyForce(
             self.sim,
             f"{group.name}_magnetization",
-            data={
-                "Magnetization 1": f"{mx:.6g}",
-                "Magnetization 2": f"{my:.6g}",
-                "Magnetization 3": f"{mz:.6g}",
-            },
+            data=magnetization.to_elmer(magnitude),
         )
         body.body_force = force
-
-    def _magnetization_direction(self, group: "PhysicalGroup") -> Vec3 | None:
-        """Resolve a unit magnetization direction from the region's tags.
-
-        Looks for the first tag carrying a `magnetization_direction` vector and
-        normalises it. Returns None if no oriented tag is present (or the vector
-        is degenerate/zero-length).
-        """
-        vec: Vec3 | None = first_tag_value(group.tags, "magnetization_direction")
-        if vec is None or vec.magnitude() == 0:
-            return None
-        return vec.normalized()
 
     def _wire_thermal_body(self, body: elmer.Body, group: "PhysicalGroup") -> None:
         """SCAFFOLD: heat-equation per-region wiring.
 
-        EntityTag already carries `fixed_temperature` (K) and `fixed_heat_flux`
-        (W/m^2). In Elmer these are boundary conditions, not body properties, so
-        the real implementation should create elmer.Boundary objects targeting
-        the *surface* physical groups of this body. That requires the gmsh
-        generator to also emit 2D (boundary) physical groups, which it does not
-        yet. Left as a stub until the thermal solver is prioritised.
+        The thermal conditions (`FixedTemperature`, `HeatFlux`, `Convection`) are
+        all boundary-target: in Elmer they are boundary conditions, not body
+        properties, so they are emitted by the condition-driven boundary loop —
+        not here. That loop needs the gmsh generator to also emit 2D (boundary)
+        physical groups, which it does not do yet (Phase 4). Until then a thermal
+        body needs only its material + equation (already attached), so this is a
+        deliberate no-op kept so the preset stays selectable.
         """
-        fixed_temperature = first_tag_value(group.tags, "fixed_temperature")
-        if fixed_temperature is not None:
-            # TODO: create a Boundary on this region's surface group with
-            #   {"Temperature": fixed_temperature}. Needs 2D groups.
-            body.data.update({"! Fixed Temperature (needs boundary)": fixed_temperature})
-
-        fixed_heat_flux = first_tag_value(group.tags, "fixed_heat_flux")
-        if fixed_heat_flux is not None:
-            # TODO: {"Heat Flux": fixed_heat_flux} on the surface group.
-            body.data.update({"! Fixed Heat Flux (needs boundary)": fixed_heat_flux})
+        return
 
     def _wire_elasticity_body(self, body: elmer.Body, group: "PhysicalGroup") -> None:
         """SCAFFOLD: linear-elasticity per-region wiring.

@@ -14,6 +14,7 @@ from common.vector import Vec3
 from elmer.physics import Physics
 from elmer.sim import SifWriter
 from meshing.config import EntityTag, MeshingConfig
+from physical.conditions import Magnetization
 from physical.materials.air import Air
 from physical.materials.neodymium import N52
 
@@ -32,16 +33,17 @@ class FakePhysicalGroup:
         self.entity_tags = [gid]
 
 
-def _groups():
-    n_tag = EntityTag(tag="Mag_N", magnetization_direction=Vec3(0, 1, 0))
+def _groups(n_tag=None):
+    if n_tag is None:
+        n_tag = EntityTag(tag="Mag_N", conditions=[Magnetization(direction=Vec3(0, 1, 0))])
     return [
         FakePhysicalGroup(1, "N52_MAG_N", N52(), [n_tag]),
         FakePhysicalGroup(2, "AIR", Air(), []),
     ]
 
 
-def _write_sif(physics=Physics.MAGNETOSTATICS):
-    writer = SifWriter(MeshingConfig(), _groups(), physics=physics)
+def _write_sif(physics=Physics.MAGNETOSTATICS, groups=None):
+    writer = SifWriter(MeshingConfig(), groups if groups is not None else _groups(), physics=physics)
     d = Path(tempfile.mkdtemp())
     writer.write(str(d))
     return (d / "case.sif").read_text()
@@ -54,11 +56,22 @@ def test_magnetostatics_sif_generates():
 
 
 def test_magnet_body_gets_magnetization_body_force():
+    # The N-pointing magnet's orientation is carried by a Magnetization condition;
+    # |M| = Br/mu0 comes from the N52 material.
     sif = _write_sif()
     m = re.search(r"Magnetization 2 = ([-0-9.eE+]+)", sif)
     assert m, "expected a Magnetization 2 keyword for the N-pointing magnet"
     # N points +y, so |M| lands on component 2 ~ Br/mu0.
     assert float(m.group(1)) == pytest.approx(1.48 / MU0, rel=1e-3)
+
+
+def test_magnet_without_direction_emits_missing_marker():
+    # N52 is a magnet, but this region carries no orientation at all: the
+    # commented MISSING DIRECTION TAG marker must be preserved.
+    n_tag = EntityTag(tag="Mag_N")
+    sif = _write_sif(groups=_groups(n_tag=n_tag))
+    assert "MISSING DIRECTION TAG" in sif
+    assert "Magnetization 2 =" not in sif
 
 
 def test_physics_accepts_enum_or_string():
