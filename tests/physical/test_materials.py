@@ -10,9 +10,13 @@ from physical.materials.properties import MaterialProperties, ThermalProperties
 from physical.materials.registry import all_materials, available_materials, material
 from physical.units import U
 
+# Operating point for stripping property functions to SI (doc 05). The migrated
+# materials are all Static, so the point is ignored, but to_elmer now requires it.
+AT = {"temperature": 300 * U.K}
+
 
 def test_materials_construct_and_emit_si_floats():
-    elmer = N52().to_elmer()
+    elmer = N52().to_elmer(at=AT)
     # Elmer wants bare SI floats, not pint quantities.
     assert elmer["Density"] == pytest.approx(7500.0)
     assert elmer["Heat Conductivity"] == pytest.approx(8.7)
@@ -24,7 +28,7 @@ def test_magnet_detection_and_magnitude():
     n52 = N52()
     assert n52.is_magnet
     # |M| = Br / mu0  ~ 1.48 / 1.2566e-6
-    assert n52.magnetic.magnetization_magnitude == pytest.approx(1.48 / 1.25663706212e-6, rel=1e-6)
+    assert n52.magnetic.magnetization_magnitude(at=AT) == pytest.approx(1.48 / 1.25663706212e-6, rel=1e-6)
     assert not Air().is_magnet
 
 
@@ -43,7 +47,7 @@ def test_round_trip_preserves_to_elmer():
     for factory in (N52, Air, FR4):
         m = factory()
         restored = MaterialProperties.model_validate(m.model_dump())
-        assert restored.to_elmer() == m.to_elmer()
+        assert restored.to_elmer(at=AT) == m.to_elmer(at=AT)
 
 
 def test_schema_has_unit_annotated_quantity_field():

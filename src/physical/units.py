@@ -15,6 +15,21 @@ __all__ = [
     "U",
     "Unit",
     "quantity_type",
+    "dimensionality_matches",
+    "DIM_TEMPERATURE",
+    "DIM_THERMAL_CONDUCTIVITY",
+    "DIM_SPECIFIC_HEAT",
+    "DIM_DENSITY",
+    "DIM_FLUX_DENSITY",
+    "DIM_FIELD_STRENGTH",
+    "DIM_PRESSURE",
+    "DIM_HEAT_FLUX",
+    "DIM_HEAT_TRANSFER_COEFFICIENT",
+    "DIM_ELECTRICAL_CONDUCTIVITY",
+    "DIM_RESISTIVITY",
+    "DIM_PERMITTIVITY",
+    "DIM_PERMEABILITY",
+    "DIM_DIMENSIONLESS",
     "Temperature",
     "Conductivity",
     "ThermalConductivity",
@@ -142,19 +157,69 @@ def quantity_type(dimensionality: str):
     return Annotated[U.Quantity, _Q]
 
 
-Temperature = quantity_type("[temperature]")
-ThermalConductivity = quantity_type("[power]/[length]/[temperature]")
+# --- dimensionality vocabulary (single source of truth) --------------------
+# The dimensionality strings are named once here so both the quantity_type
+# aliases below and the property-function field types (physical.property_functions)
+# reference the same string rather than re-spelling it (README: "factor out
+# repeated patterns"). A bracketed pint dimensionality is the "schema" for a
+# field; spelling one differently in two places is exactly the duplication to
+# avoid.
+DIM_TEMPERATURE: str = "[temperature]"
+DIM_THERMAL_CONDUCTIVITY: str = "[power]/[length]/[temperature]"
+DIM_SPECIFIC_HEAT: str = "[energy]/[mass]/[temperature]"
+DIM_DENSITY: str = "[mass]/[length]**3"
+DIM_FLUX_DENSITY: str = "[mass]/[current]/[time]**2"
+DIM_FIELD_STRENGTH: str = "[current]/[length]"
+DIM_PRESSURE: str = "[pressure]"
+DIM_HEAT_FLUX: str = "[power]/[length]**2"
+DIM_HEAT_TRANSFER_COEFFICIENT: str = "[power]/[length]**2/[temperature]"
+DIM_ELECTRICAL_CONDUCTIVITY: str = "[current]**2*[time]**3/[mass]/[length]**3"
+DIM_RESISTIVITY: str = "[mass]*[length]**3/[current]**2/[time]**3"
+DIM_PERMITTIVITY: str = "[current]**2*[time]**4/[mass]/[length]**3"
+DIM_PERMEABILITY: str = "[mass]*[length]/[current]**2/[time]**2"
+DIM_DIMENSIONLESS: str = ""
+
+
+# An empty UnitsContainer; the canonical "no dimensions" value to compare against.
+_DIMENSIONLESS = (1 * U.dimensionless).dimensionality
+
+
+def _dimensionality(spec: str):
+    """Parse a pint dimensionality string to a UnitsContainer for comparison.
+
+    Handles the dimensionless spellings ('' and 'dimensionless'), which pint's
+    ``get_dimensionality`` cannot parse directly.
+    """
+    s: str = spec.strip()
+    if s in ("", "dimensionless"):
+        return _DIMENSIONLESS
+    return U.get_dimensionality(s)
+
+
+def dimensionality_matches(expected: str, got: str) -> bool:
+    """True if two pint dimensionality strings denote the same dimensionality.
+
+    Compares parsed dimensionalities, not raw text, so equivalent spellings
+    (e.g. ``"[power]/[length]/[temperature]"`` vs the ``str()`` of a quantity's
+    ``.dimensionality``) match. Used to check that a property function's
+    ``result_dimensionality`` is compatible with the field it is assigned to.
+    """
+    return _dimensionality(expected) == _dimensionality(got)
+
+
+Temperature = quantity_type(DIM_TEMPERATURE)
+ThermalConductivity = quantity_type(DIM_THERMAL_CONDUCTIVITY)
 Conductivity = ThermalConductivity
-SpecificHeat = quantity_type("[energy]/[mass]/[temperature]")
-Density = quantity_type("[mass]/[length]**3")
-FluxDensity = quantity_type("[mass]/[current]/[time]**2")
-FieldStrength = quantity_type("[current]/[length]")
-Pressure = quantity_type("[pressure]")
-HeatFlux = quantity_type("[power]/[length]**2")
-HeatTransferCoefficient = quantity_type("[power]/[length]**2/[temperature]")
-ElectricalConductivity = quantity_type("[current]**2*[time]**3/[mass]/[length]**3")
-Resistivity = quantity_type("[mass]*[length]**3/[current]**2/[time]**3")
-Permittivity = quantity_type("[current]**2*[time]**4/[mass]/[length]**3")
-Permeability = quantity_type("[mass]*[length]/[current]**2/[time]**2")
-Dimensionless = quantity_type("")
+SpecificHeat = quantity_type(DIM_SPECIFIC_HEAT)
+Density = quantity_type(DIM_DENSITY)
+FluxDensity = quantity_type(DIM_FLUX_DENSITY)
+FieldStrength = quantity_type(DIM_FIELD_STRENGTH)
+Pressure = quantity_type(DIM_PRESSURE)
+HeatFlux = quantity_type(DIM_HEAT_FLUX)
+HeatTransferCoefficient = quantity_type(DIM_HEAT_TRANSFER_COEFFICIENT)
+ElectricalConductivity = quantity_type(DIM_ELECTRICAL_CONDUCTIVITY)
+Resistivity = quantity_type(DIM_RESISTIVITY)
+Permittivity = quantity_type(DIM_PERMITTIVITY)
+Permeability = quantity_type(DIM_PERMEABILITY)
+Dimensionless = quantity_type(DIM_DIMENSIONLESS)
 Quantity = U.Quantity

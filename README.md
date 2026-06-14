@@ -12,12 +12,14 @@ for the design docs and phased roadmap.
 
 ## Project status
 
-**Phase 0 (typing backbone & de-duplication) is complete** — 117 tests pass
-via `uv run pytest`. The config/material surface is now Pydantic with
-unit-validated pint quantities, a `Physics` enum (incl. a linear-elasticity
-scaffold), a single material registry, and JSON-schema export
-(`docs/schema/`). See `docs/architecture/NEXT-SESSION-KICKOFF.md` for the next
-phase and `docs/architecture/04-roadmap.md` for the full sequence.
+**Phase 1 (property functions) is complete** — 134 tests pass via `uv run
+pytest`. Building on the Phase 0 typing backbone (Pydantic + unit-validated pint
+quantities, a `Physics` enum, a single material registry, JSON-schema export),
+every material property is now a pint-aware callable: `Static` (constant),
+`Calibration` (1-D interpolation), or `ClosedForm` (Python formula), all behind
+one typed `PropertyFunction` call site. `to_elmer(at=...)` evaluates each at an
+operating point and strips to SI. See `docs/architecture/04-roadmap.md` for the
+full phased sequence.
 
 ## Running tests
 

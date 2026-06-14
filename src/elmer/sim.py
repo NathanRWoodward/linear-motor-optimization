@@ -29,11 +29,12 @@ marked with SCAFFOLD where it still needs project-specific decisions.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Mapping
 
 from common.vector import Vec3
 from elmer.physics import Physics
 from meshing.config import EntityTag, MeshingConfig, first_tag_value
+from physical.units import U, Quantity
 import pyelmer.elmer as elmer
 
 if TYPE_CHECKING:
@@ -173,6 +174,15 @@ SOLVER_LIBRARY: dict[str, dict] = {
     },
 }
 
+# The operating point at which material property functions are evaluated when
+# stripping to Elmer's bare SI floats (doc 05). Static properties ignore it;
+# temperature-dependent Calibration / ClosedForm properties consume it. The
+# magnetostatics path is temperature-independent today, so a fixed room-temp
+# default keeps the existing smoke sif byte-for-byte unchanged while giving the
+# property functions a real point to be evaluated at. A preset may override it
+# via an "operating_point" key.
+DEFAULT_OPERATING_POINT: dict[str, Quantity] = {"temperature": 300 * U.K}
+
 # Which solvers (in order) make up each physics option, and which base
 # simulation settings they use. The body force / boundary wiring in the
 # Generator switches on the `physics` string too.
@@ -184,6 +194,7 @@ PHYSICS_PRESETS: dict[str, dict] = {
             # mu0; Elmer uses this for the magnetostatic constitutive relation.
             "Permeability of Vacuum": "1.25663706212e-6",
         },
+        "operating_point": DEFAULT_OPERATING_POINT,
     },
     # SCAFFOLD presets: structurally complete, but their per-body wiring in the
     # Generator is intentionally left as clearly-marked stubs.
@@ -191,16 +202,19 @@ PHYSICS_PRESETS: dict[str, dict] = {
         "simulation": "3D_steady",
         "solvers": ["HeatSolver", "ResultOutputSolver"],
         "constants": {"Stefan Boltzmann": "5.6704e-08"},
+        "operating_point": DEFAULT_OPERATING_POINT,
     },
     "electrostatics": {
         "simulation": "3D_steady",
         "solvers": ["Electrostatics", "ResultOutputSolver"],
         "constants": {"Permittivity of Vacuum": "8.8541878128e-12"},
+        "operating_point": DEFAULT_OPERATING_POINT,
     },
     "linear_elasticity": {
         "simulation": "3D_steady",
         "solvers": ["StressSolver", "ResultOutputSolver"],
         "constants": {},
+        "operating_point": DEFAULT_OPERATING_POINT,
     },
 }
 
@@ -239,6 +253,8 @@ class SifWriter:
         except ValueError:
             raise ValueError(f"Unknown physics {physics!r}; choose from {[p.value for p in Physics]}.") from None
         self.preset: dict = PHYSICS_PRESETS[self.physics.value]
+        # Operating point for evaluating material property functions (doc 05).
+        self.operating_point: Mapping[str, Quantity] = self.preset.get("operating_point", DEFAULT_OPERATING_POINT)
 
         self.sim: elmer.Simulation = elmer.Simulation()
         self.sim.settings = dict(SIMULATION_LIBRARY[self.preset["simulation"]])
@@ -277,7 +293,7 @@ class SifWriter:
             if mat.name in seen:
                 continue
             seen.add(mat.name)
-            materials[mat.name] = elmer.Material(self.sim, mat.name, data=mat.to_elmer())
+            materials[mat.name] = elmer.Material(self.sim, mat.name, data=mat.to_elmer(at=self.operating_point))
         return materials
 
     def _build_bodies(self) -> None:
@@ -313,7 +329,7 @@ class SifWriter:
         if not group.material.is_magnet:
             return
 
-        magnitude: float = group.material.magnetic.magnetization_magnitude  # A/m
+        magnitude: float = group.material.magnetic.magnetization_magnitude(at=self.operating_point)  # A/m
 
         direction: Vec3 | None = self._magnetization_direction(group)
         if direction is None:

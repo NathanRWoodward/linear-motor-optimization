@@ -1,7 +1,9 @@
 # 05 — Property functions: properties as pint-aware callables
 
-**Status: planned, not implemented.** New direction (request set 2). Depends on
-the typing backbone in [06-typing-and-schema.md](06-typing-and-schema.md).
+**Status: implemented (Phase 1).** New direction (request set 2). Depends on
+the typing backbone in [06-typing-and-schema.md](06-typing-and-schema.md). Lives
+in `physical/property_functions.py`; the material fields use the coercing
+`property_function_type` so bare quantities still authorable as before.
 
 ## Goal
 
@@ -215,11 +217,11 @@ In `tests/physical/` (pytest already wired via UV):
 
 ## Handoff checklist
 
-- [ ] Land the typing backbone (doc 06: `Quantity` alias + `quantity_type`) first.
-- [ ] Add `PropertyFunction` Protocol + `BasePropertyFunction` + typed errors.
-- [ ] Implement `Static`; migrate one material (N52) end-to-end as proof.
-- [ ] Implement `Calibration` (1-D) + `ClosedForm` (Callable form).
-- [ ] Switch `*.to_elmer()` to evaluate at an `at` operating point.
-- [ ] Tests above, all passing under `uv run pytest`.
-- [ ] (Defer) N-D calibration, string-expression closed form, Elmer tabular
-      dependency emission — note as parking-lot in [04-roadmap.md](04-roadmap.md).
+- [x] Land the typing backbone (doc 06: `Quantity` alias + `quantity_type`) first.
+- [x] Add `PropertyFunction` Protocol + `BasePropertyFunction` + typed errors.
+- [x] Implement `Static`; migrate one material (N52) end-to-end as proof.
+- [x] Implement `Calibration` (1-D) + `ClosedForm` (Callable form).
+- [x] Switch `*.to_elmer()` to evaluate at an `at` operating point.
+- [x] Tests above, all passing under `uv run pytest`.
+- [x] (Defer) N-D calibration, string-expression closed form, Elmer tabular
+      dependency emission — noted as parking-lot in [04-roadmap.md](04-roadmap.md).

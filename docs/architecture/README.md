@@ -27,7 +27,7 @@ group, referencing the same integer id and reusing the same name.
 | [02-conditions-refactor.md](02-conditions-refactor.md) | Plan: replace the overloaded `EntityTag` with composable condition objects | **Planned, not implemented** |
 | [03-solver-validation.md](03-solver-validation.md) | Plan: validate solver presets against required material/BC properties | **Planned, not implemented** |
 | [04-roadmap.md](04-roadmap.md) | Phased sequencing, dependencies, and per-phase handoff notes | Reference |
-| [05-property-functions.md](05-property-functions.md) | Plan: properties as pint-aware callables (static / calibration / closed-form) | **Planned, not implemented** |
+| [05-property-functions.md](05-property-functions.md) | Plan: properties as pint-aware callables (static / calibration / closed-form) | **Implemented (Phase 1)** |
 | [06-typing-and-schema.md](06-typing-and-schema.md) | Plan: Pydantic+Protocol typing backbone, pint schema, de-duplication. The spine. | **Implemented (Phase 0)** |
 | [07-run-lifecycle.md](07-run-lifecycle.md) | Plan: provenance (RunManifest), typed Result, mesh convergence, caching seam | **Planned, not implemented** |
 | [08-optimization-seam.md](08-optimization-seam.md) | Plan: Parameterization/Objective seam + naive grid search + Study tracking | **Planned, not implemented** |

@@ -71,12 +71,35 @@ physics strings remain. Existing magnetostatics smoke sif still generates.
 
 ## Phase 1 — Property functions (static → calibration → closed-form)
 
+**Status: ✅ COMPLETE.** Landed with 134 passing tests (117 prior + 17 new in
+`tests/physical/test_property_functions.py`). The magnetostatics smoke sif is
+byte-unchanged and `docs/schema/*.json` is unchanged (the property fields
+serialize through the same unit-string form as before).
+
 **Doc:** [05-property-functions.md](05-property-functions.md). **Needs:** Phase 0.
 
-- Add the `PropertyFunction` Protocol, `BasePropertyFunction`, typed errors.
-- Implement `Static`; migrate N52 end-to-end as proof.
-- Implement `Calibration` (1-D) and `ClosedForm` (Callable form).
-- Switch `*.to_elmer()` to evaluate at an `at` operating point.
+- Added the `PropertyFunction` Protocol, `BasePropertyFunction` (shared parameter
+  checking), and typed errors `PropertyParameterError` / `PropertyDimensionError`
+  / `PropertyRangeError` in `physical/property_functions.py`.
+- Implemented `Static`; migrated **N52 end-to-end** (its scalars are now explicit
+  `Static(value=...)`). Air / FR4 keep bare-quantity authoring, which the new
+  `property_function_type` field coerces into a `Static` — so both styles work
+  and the field still validates dimensionality at construction.
+- Implemented `Calibration` (1-D linear/nearest interpolation; points validated
+  against `param_dims` at construction; out-of-range raises unless
+  `extrapolate=True`) and `ClosedForm` (the locked Python-callable form,
+  pint-in / pint-out).
+- Switched `*.to_elmer()` to `to_elmer(*, at: Mapping[str, Quantity])`; the
+  `SifWriter` threads an operating point from the physics preset
+  (`DEFAULT_OPERATING_POINT = {"temperature": 300 K}`). `magnetization_magnitude`
+  is now `magnetization_magnitude(at=...)` so a temperature-dependent remanence
+  flows through correctly.
+
+**Parking lot (deferred, see "Out of scope" below):** N-D calibration (1-D only —
+construction rejects >1 parameter), the `"cubic"` interpolation method (needs
+scipy; raises `NotImplementedError`), the string-expression closed form, and
+emitting Elmer's native tabular temperature-dependency syntax by sampling a
+`PropertyFunction`.
 
 **Done when:** a material property can be a constant, a set of calibration
 points, or a formula — all behind one typed call site — and `to_elmer(at=...)`
@@ -201,9 +224,10 @@ PR, each with tests.
 
 ## Out of scope (parking lot)
 
-- N-D calibration interpolation; string-expression closed form (callable form is
-  the locked v1); emitting Elmer's native tabular temperature dependency from a
-  `PropertyFunction` (doc 05).
+- N-D calibration interpolation; the `"cubic"` interpolation method (needs scipy;
+  `linear`/`nearest` ship in Phase 1); string-expression closed form (callable
+  form is the locked v1); emitting Elmer's native tabular temperature dependency
+  from a `PropertyFunction` (doc 05).
 - Explicit build123d face labels / bbox overrides for surfaces adjacency can't
   name (doc 01 escape hatch).
 - Transient / harmonic magnetics presets.
