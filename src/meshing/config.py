@@ -20,6 +20,7 @@ class MeshingConfig:
     def __init__(self):
         self.materials: list[MaterialProperties] = []
         self.tags: list[EntityTag] = []
+        self.STEP: str = "data/geometry.step"
 
         self.global_mesh_size: float = 1.0
         """Global mesh size in meters, representing the target size of mesh elements across the entire geometry"""

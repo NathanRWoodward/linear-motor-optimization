@@ -33,8 +33,8 @@ def main():
     config.gap = 5
 
     all_materials = {
-        "FR4": FR4(),
-        "N52": N52(),
+        "FasdfsaefdR4": FR4(),
+        "N5dd2": N52(),
         "Air": Air(),
     }
     matTree = Tree(COLORS.H1("Materials"))

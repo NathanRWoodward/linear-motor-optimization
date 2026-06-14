@@ -5,7 +5,7 @@
       "name": "Python: Run Specific Module",
       "type": "debugpy",
       "request": "launch",
-      "module": "workbench_monitor",
+      "program": "${workspaceFolder}/workbench_monitor.py",
       "console": "integratedTerminal",
       "justMyCode": false,
       "env": {

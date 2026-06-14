@@ -13,7 +13,6 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from rich.console import Console
 from rich import print
-import workbench
 
 console = Console()
 
@@ -68,11 +67,7 @@ class CodeReloaderHandler(FileSystemEventHandler):
         self._running = True
         try:
             start = time.time()
-            modules_to_purge = [
-                module
-                for module in sys.modules.values()
-                if self._include_module(module)
-            ]
+            modules_to_purge = [module for module in sys.modules.values() if self._include_module(module)]
 
             for mod_name in modules_to_purge:
                 # print(f"Purging module: {mod_name.__name__}")
@@ -82,9 +77,7 @@ class CodeReloaderHandler(FileSystemEventHandler):
 
             importlib.reload(workbench)
             workbench.main()
-            print(
-                f"[cyan][Hot Reload][/cyan] Done in {time.time() - start:.4f} seconds!"
-            )
+            print(f"[cyan][Hot Reload][/cyan] Done in {time.time() - start:.4f} seconds!")
         except Exception:
             console.print_exception(width=400, extra_lines=3, suppress=[__file__])
         finally:
@@ -108,6 +101,7 @@ if __name__ == "__main__":
 
     observer = Observer()
     observer.schedule(reloader, path="./src", recursive=True)
+    observer.schedule(reloader, path=".", recursive=False)
     observer.start()
 
     reloader.run()  # Run once at startup to display the initial design
