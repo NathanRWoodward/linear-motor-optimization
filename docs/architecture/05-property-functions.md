@@ -159,13 +159,12 @@ class ClosedForm(BasePropertyFunction):
         return self.expression(**kwargs)
 ```
 
-Two sub-options for `expression`, decide at implementation time:
-- **Callable** (a Python lambda/function): simplest, fully pint-aware, but not
-  serializable to JSON schema (it's code). Good for in-code material definitions.
-- **Safe string** (e.g. a restricted arithmetic mini-language or `asteval` over
-  pint quantities): serializable, schema-able, safer for config files, but more
-  to build. Recommend starting with Callable and adding string support only if a
-  config-file/material-database use case demands it.
+**Decision (locked):** `expression` is a **Python callable** (pint-in / pint-out).
+Simplest, fully pint-aware, good for in-code material definitions. It is not
+JSON-serializable (it's code) — that's an accepted trade-off for now. A
+string/expression mini-language for config-file-defined formulas is explicitly
+**deferred** to the parking lot ([04-roadmap.md](04-roadmap.md)) until a concrete
+material-database / config-file use case demands it.
 
 ## Integration with `to_elmer()` and the rest
 
