@@ -2,6 +2,12 @@ from common.utils import COLORS, title
 from rich.tree import Tree
 from physical.units import Unit
 
+# TODO: We need to figure out what exaxly Elmer needs here!
+#           I'm surely missing some important properties, and maybe some of these are not needed.
+#           We can start with a basic set of properties and then add more as needed.
+#           We also need to figure out how to handle anisotropic materials, which may have different properties in different directions.
+#           For now, we can just assume everything is isotropic and add anisotropy later if needed. (we will if dealing with composites)
+
 
 class MechanicalProperties:
     def __init__(self):

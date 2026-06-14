@@ -11,7 +11,7 @@ import pyelmer.elmer as elmer
 #  We can then use these physical groups to assign the right materials and boundary conditions in the solver config.
 
 
-### GO look at https://github.com/nemocrys/pyelmer/blob/master/examples/3D_Electrostatic_Capacitance/3d_electrostatic_capacitance.py for an example of how to use pyelmer to create a simulation config based on the mesh config.
+### Look at the example folder in `./pyelmer/examples` in this folder for examples of how to create the simulation config based on the mesh config. We can create the materials, solvers, equations, bodies, and boundaries based on the materials and tags in the mesh config.
 ##  Emuplate the way they create the simulation config based on the mesh config, but instead of hardcoding the materials and boundary conditions, we will create them based on the materials and tags in the mesh config.
 
 
