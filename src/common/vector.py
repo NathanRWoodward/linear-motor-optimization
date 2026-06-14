@@ -103,6 +103,9 @@ class Vec3:
     def __mul__(self, scalar: float) -> "Vec3":
         return Vec3(self.x * scalar, self.y * scalar, self.z * scalar)
 
+    def __rmul__(self, scalar: float) -> "Vec3":
+        return Vec3(scalar * self.x, scalar * self.y, scalar * self.z)
+
     def __truediv__(self, scalar: float) -> "Vec3":
         return Vec3(self.x / scalar, self.y / scalar, self.z / scalar)
 
@@ -110,6 +113,9 @@ class Vec3:
         import math
 
         return math.sqrt(self.x**2 + self.y**2 + self.z**2)
+
+    def __abs__(self) -> float:
+        return self.magnitude()
 
     def __repr__(self):
         return f"Vec3({self.x}, {self.y}, {self.z})"

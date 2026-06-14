@@ -59,7 +59,7 @@ class RichEngineeringFormatter(Formatter):
         x = self._tag(fmt(vec3.x), self.x_style)
         y = self._tag(fmt(vec3.y), self.y_style)
         z = self._tag(fmt(vec3.z), self.z_style)
-        return f"[{x}, {y}, {z}]"
+        return f"<{x}, {y}, {z}>"
 
     def _style_unit(self, unit_str: str) -> str:
         if not unit_str:
@@ -72,10 +72,20 @@ class RichEngineeringFormatter(Formatter):
         spec = spec or self.default_format
         if "#" in spec:
             spec = spec.replace("#", "")
-            try:
-                obj = quantity.to_compact()
-            except Exception:
-                obj = quantity
+            mag = quantity.magnitude
+            if hasattr(mag, "x") and hasattr(mag, "y") and hasattr(mag, "z"):
+                # pint's to_compact() silently no-ops on non-Number magnitudes;
+                # use a scalar proxy (Euclidean magnitude) to pick the compact unit.
+                try:
+                    scalar_proxy = self._registry.Quantity(abs(mag), quantity.units)
+                    obj = quantity.to(scalar_proxy.to_compact().units)
+                except Exception:
+                    obj = quantity
+            else:
+                try:
+                    obj = quantity.to_compact()
+                except Exception:
+                    obj = quantity
         else:
             obj = quantity
         sub_fmt = self.get_formatter(spec)
