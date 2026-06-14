@@ -42,6 +42,11 @@ consumer that sits on top of a working pipeline + lifecycle.
 
 ## Phase 0 — Typing backbone & de-duplication (foundation)
 
+**Status: ✅ COMPLETE.** Landed with 117 passing tests. Also added a
+`Physics.LINEAR_ELASTICITY` mechanical scaffold (StressSolver preset) and
+`Vec3.normalized()` / `meshing.config.first_tag_value()` utilities (review
+follow-ups); coding conventions captured in the top-level `README.md`.
+
 **Doc:** [06-typing-and-schema.md](06-typing-and-schema.md).
 **Why first:** the `quantity_type` keystone (pint + Pydantic + JSON schema) and
 the single-source-of-truth cleanup are prerequisites for property functions,

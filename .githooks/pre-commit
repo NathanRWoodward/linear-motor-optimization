@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Pre-commit guard against truncated/corrupted text files (see
+# scripts/check_truncation.py). Enable once per clone with:
+#     git config core.hooksPath .githooks
+set -euo pipefail
+
+# Prefer python3, fall back to python (Windows).
+if command -v python3 >/dev/null 2>&1; then PY=python3; else PY=python; fi
+
+"$PY" scripts/check_truncation.py

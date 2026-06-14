@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Iterable, Iterator, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 from rich.tree import Tree
@@ -7,6 +7,19 @@ from common.utils import COLORS
 from common.vector import Vec3, Vec3Field
 from physical.materials.properties import MaterialProperties
 from physical.units import HeatFlux, HeatTransferCoefficient, Temperature
+
+
+def first_tag_value(tags: Iterable["EntityTag"], field: str) -> Optional[Any]:
+    """Return the first non-None value of ``field`` across ``tags``, or None.
+
+    Replaces the repeated ``getattr(tag, field, None) is not None`` lookup so the
+    "find the override a region carries" logic lives in one place.
+    """
+    for tag in tags:
+        value: Any = getattr(tag, field, None)
+        if value is not None:
+            return value
+    return None
 
 
 class EntityTag(BaseModel):
@@ -38,16 +51,26 @@ class EntityTag(BaseModel):
         default=None, description="Convective heat transfer coefficient for a convection boundary"
     )
 
-    def print_tree(self, tree: Tree):
-        report = tree.add(COLORS.H2(f"Tag: {self.tag}"))
-        if self.magnetization_direction is not None:
-            report.add(COLORS.Prop("Magnetization Direction", f"{self.magnetization_direction}"))
-        if self.fixed_temperature is not None:
-            report.add(COLORS.Prop("Fixed Temperature", f"{self.fixed_temperature}"))
-        if self.fixed_heat_flux is not None:
-            report.add(COLORS.Prop("Fixed Heat Flux", f"{self.fixed_heat_flux}"))
-        if self.convection_coefficient is not None:
-            report.add(COLORS.Prop("Convection Coefficient", f"{self.convection_coefficient}"))
+    # (field name, human label) for the overrides this tag can carry. Used by
+    # print_tree and overrides() so the set lives in one place.
+    _OVERRIDE_FIELDS: tuple[tuple[str, str], ...] = (
+        ("magnetization_direction", "Magnetization Direction"),
+        ("fixed_temperature", "Fixed Temperature"),
+        ("fixed_heat_flux", "Fixed Heat Flux"),
+        ("convection_coefficient", "Convection Coefficient"),
+    )
+
+    def overrides(self) -> Iterator[tuple[str, str, Any]]:
+        """Yield (field, label, value) for each override that is set (non-None)."""
+        for field, label in self._OVERRIDE_FIELDS:
+            value: Any = getattr(self, field)
+            if value is not None:
+                yield field, label, value
+
+    def print_tree(self, tree: Tree) -> None:
+        report: Tree = tree.add(COLORS.H2(f"Tag: {self.tag}"))
+        for _field, label, value in self.overrides():
+            report.add(COLORS.Prop(label, f"{value}"))
 
 
 class MeshingConfig(BaseModel):

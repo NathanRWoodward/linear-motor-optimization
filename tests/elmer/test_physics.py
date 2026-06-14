@@ -19,3 +19,8 @@ def test_enum_member_is_a_str():
 def test_out_of_vocabulary_value_rejected():
     with pytest.raises(ValueError):
         Physics("nonsense")
+
+
+def test_linear_elasticity_member_present() -> None:
+    assert Physics.LINEAR_ELASTICITY == "linear_elasticity"
+    assert "linear_elasticity" in {p.value for p in Physics}

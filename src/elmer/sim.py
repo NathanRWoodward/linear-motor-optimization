@@ -29,10 +29,17 @@ marked with SCAFFOLD where it still needs project-specific decisions.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from common.vector import Vec3
 from elmer.physics import Physics
-from meshing.config import MeshingConfig
+from meshing.config import EntityTag, MeshingConfig, first_tag_value
 import pyelmer.elmer as elmer
+
+if TYPE_CHECKING:
+    # Imported only for type checking: the real module pulls in gmsh, which we
+    # don't want at import time (and which pure-logic tests can't load).
+    from meshing.generator import PhysicalGroup
 
 
 # ---------------------------------------------------------------------------
@@ -141,6 +148,29 @@ SOLVER_LIBRARY: dict[str, dict] = {
         "Linear System Convergence Tolerance": 1.0e-10,
         "Linear System Preconditioning": "ILU0",
     },
+    # --- SCAFFOLD: linear elasticity (structural) --------------------------
+    # Elmer's StressSolve solves linear elasticity. It consumes "Youngs Modulus"
+    # and "Poisson Ratio" material keywords; the latter is not yet stored on
+    # MechanicalProperties (add it when this physics is prioritised). Loads and
+    # supports are boundary conditions, so the body/boundary wiring below is a
+    # clearly-marked stub pending the 2D-group work.
+    "StressSolver": {
+        "Equation": "Linear elasticity",
+        "Procedure": '"StressSolve" "StressSolver"',
+        "Variable": "Displacement",
+        "Variable Dofs": 3,
+        "Exec Solver": "Always",
+        "Calculate Stresses": True,
+        "Optimize Bandwidth": True,
+        "Steady State Convergence Tolerance": 1.0e-6,
+        "Nonlinear System Convergence Tolerance": 1.0e-7,
+        "Nonlinear System Max Iterations": 1,
+        "Linear System Solver": "Iterative",
+        "Linear System Iterative Method": "BiCGStab",
+        "Linear System Max Iterations": 5000,
+        "Linear System Convergence Tolerance": 1.0e-8,
+        "Linear System Preconditioning": "ILU0",
+    },
 }
 
 # Which solvers (in order) make up each physics option, and which base
@@ -167,6 +197,11 @@ PHYSICS_PRESETS: dict[str, dict] = {
         "solvers": ["Electrostatics", "ResultOutputSolver"],
         "constants": {"Permittivity of Vacuum": "8.8541878128e-12"},
     },
+    "linear_elasticity": {
+        "simulation": "3D_steady",
+        "solvers": ["StressSolver", "ResultOutputSolver"],
+        "constants": {},
+    },
 }
 
 
@@ -189,54 +224,59 @@ class SifWriter:
             convenience). Defaults to the fully implemented magnetostatics path.
     """
 
-    def __init__(self, config: MeshingConfig, physical_groups: list | None = None, physics: Physics | str = Physics.MAGNETOSTATICS):
-        self.config = config
-        self.physical_groups = physical_groups or []
+    def __init__(
+        self,
+        config: MeshingConfig,
+        physical_groups: list["PhysicalGroup"] | None = None,
+        physics: Physics | str = Physics.MAGNETOSTATICS,
+    ) -> None:
+        self.config: MeshingConfig = config
+        self.physical_groups: list["PhysicalGroup"] = physical_groups or []
         # Accept either the enum or its string value; normalize to the enum so a
         # bad value fails here with a clear error rather than at preset lookup.
         try:
-            self.physics = Physics(physics)
+            self.physics: Physics = Physics(physics)
         except ValueError:
             raise ValueError(f"Unknown physics {physics!r}; choose from {[p.value for p in Physics]}.") from None
-        self.preset = PHYSICS_PRESETS[self.physics.value]
+        self.preset: dict = PHYSICS_PRESETS[self.physics.value]
 
-        self.sim = elmer.Simulation()
+        self.sim: elmer.Simulation = elmer.Simulation()
         self.sim.settings = dict(SIMULATION_LIBRARY[self.preset["simulation"]])
         self.sim.constants.update(self.preset["constants"])
 
         # Build the sif sections in dependency order.
-        self._solvers = self._build_solvers()
-        self._equation = self._build_equation()
-        self._materials = self._build_materials()
+        self._solvers: list[elmer.Solver] = self._build_solvers()
+        self._equation: elmer.Equation = self._build_equation()
+        self._materials: dict[str, elmer.Material] = self._build_materials()
         self._build_bodies()
 
     # -- sif section builders ------------------------------------------------
 
-    def _build_solvers(self) -> list:
+    def _build_solvers(self) -> list[elmer.Solver]:
         """Instantiate the preset's solvers as pyelmer Solver objects."""
-        solvers = []
+        solvers: list[elmer.Solver] = []
         for name in self.preset["solvers"]:
             solvers.append(elmer.Solver(self.sim, name, dict(SOLVER_LIBRARY[name])))
         return solvers
 
-    def _build_equation(self):
+    def _build_equation(self) -> elmer.Equation:
         """One equation referencing all active solvers, attached to every body.
 
         (Post-processing solvers like CalcFields/ResultOutput are listed as
         active solvers here, which is how Elmer expects them.)"""
         return elmer.Equation(self.sim, "main", self._solvers)
 
-    def _build_materials(self) -> dict:
+    def _build_materials(self) -> dict[str, elmer.Material]:
         """One Elmer Material per distinct project material, keyed by material
         name. Deduplicated so two bodies of the same material share one Material
         block (pyelmer's Material(__new__) also guards against clashes)."""
-        materials: dict = {}
-        seen: dict[str, MeshingConfig] = {}
+        materials: dict[str, elmer.Material] = {}
+        seen: set[str] = set()
         for group in self.physical_groups:
             mat = group.material
             if mat.name in seen:
                 continue
-            seen[mat.name] = mat
+            seen.add(mat.name)
             materials[mat.name] = elmer.Material(self.sim, mat.name, data=mat.to_elmer())
         return materials
 
@@ -245,7 +285,7 @@ class SifWriter:
         wired to its material + the shared equation, plus any physics-specific
         per-body extras (magnetization body force, fixed temperature, ...)."""
         for group in self.physical_groups:
-            body = elmer.Body(self.sim, group.name, [group.id])
+            body: elmer.Body = elmer.Body(self.sim, group.name, [group.id])
             body.material = self._materials[group.material.name]
             body.equation = self._equation
 
@@ -253,12 +293,14 @@ class SifWriter:
                 self._wire_magnet_body(body, group)
             elif self.physics is Physics.THERMAL:
                 self._wire_thermal_body(body, group)
+            elif self.physics is Physics.LINEAR_ELASTICITY:
+                self._wire_elasticity_body(body, group)
             # electrostatics: bodies need only material + equation here;
             # potentials are applied as boundaries (SCAFFOLD, see note below).
 
     # -- physics-specific per-body wiring -----------------------------------
 
-    def _wire_magnet_body(self, body, group) -> None:
+    def _wire_magnet_body(self, body: elmer.Body, group: "PhysicalGroup") -> None:
         """Attach a permanent-magnet Body Force if this region is a magnet.
 
         The magnetization magnitude |M| = Br/mu0 comes from the material. The
@@ -271,17 +313,19 @@ class SifWriter:
         if not group.material.is_magnet:
             return
 
-        magnitude = group.material.magnetic.magnetization_magnitude  # A/m
+        magnitude: float = group.material.magnetic.magnetization_magnitude  # A/m
 
-        direction = self._magnetization_direction(group)
+        direction: Vec3 | None = self._magnetization_direction(group)
         if direction is None:
             # Material is a magnet but no orientation tag was found. Emit a
             # commented marker rather than silently producing a zero field.
             body.data.update({"! Magnetization": "MISSING DIRECTION TAG"})
             return
 
-        mx, my, mz = magnitude * direction.x, magnitude * direction.y, magnitude * direction.z
-        force = elmer.BodyForce(
+        mx: float = magnitude * direction.x
+        my: float = magnitude * direction.y
+        mz: float = magnitude * direction.z
+        force: elmer.BodyForce = elmer.BodyForce(
             self.sim,
             f"{group.name}_magnetization",
             data={
@@ -292,23 +336,19 @@ class SifWriter:
         )
         body.body_force = force
 
-    def _magnetization_direction(self, group) -> Vec3 | None:
+    def _magnetization_direction(self, group: "PhysicalGroup") -> Vec3 | None:
         """Resolve a unit magnetization direction from the region's tags.
 
         Looks for the first tag carrying a `magnetization_direction` vector and
-        normalises it. Returns None if no oriented tag is present.
+        normalises it. Returns None if no oriented tag is present (or the vector
+        is degenerate/zero-length).
         """
-        for tag in group.tags:
-            vec = getattr(tag, "magnetization_direction", None)
-            if vec is None:
-                continue
-            mag = (vec.x**2 + vec.y**2 + vec.z**2) ** 0.5
-            if mag == 0:
-                continue
-            return Vec3(vec.x / mag, vec.y / mag, vec.z / mag)
-        return None
+        vec: Vec3 | None = first_tag_value(group.tags, "magnetization_direction")
+        if vec is None or vec.magnitude() == 0:
+            return None
+        return vec.normalized()
 
-    def _wire_thermal_body(self, body, group) -> None:
+    def _wire_thermal_body(self, body: elmer.Body, group: "PhysicalGroup") -> None:
         """SCAFFOLD: heat-equation per-region wiring.
 
         EntityTag already carries `fixed_temperature` (K) and `fixed_heat_flux`
@@ -318,14 +358,29 @@ class SifWriter:
         generator to also emit 2D (boundary) physical groups, which it does not
         yet. Left as a stub until the thermal solver is prioritised.
         """
-        for tag in group.tags:
-            if getattr(tag, "fixed_temperature", None) is not None:
-                # TODO: create a Boundary on this region's surface group with
-                #   {"Temperature": tag.fixed_temperature}. Needs 2D groups.
-                body.data.update({"! Fixed Temperature (needs boundary)": tag.fixed_temperature})
-            if getattr(tag, "fixed_heat_flux", None) is not None:
-                # TODO: {"Heat Flux": tag.fixed_heat_flux} on the surface group.
-                body.data.update({"! Fixed Heat Flux (needs boundary)": tag.fixed_heat_flux})
+        fixed_temperature = first_tag_value(group.tags, "fixed_temperature")
+        if fixed_temperature is not None:
+            # TODO: create a Boundary on this region's surface group with
+            #   {"Temperature": fixed_temperature}. Needs 2D groups.
+            body.data.update({"! Fixed Temperature (needs boundary)": fixed_temperature})
+
+        fixed_heat_flux = first_tag_value(group.tags, "fixed_heat_flux")
+        if fixed_heat_flux is not None:
+            # TODO: {"Heat Flux": fixed_heat_flux} on the surface group.
+            body.data.update({"! Fixed Heat Flux (needs boundary)": fixed_heat_flux})
+
+    def _wire_elasticity_body(self, body: elmer.Body, group: "PhysicalGroup") -> None:
+        """SCAFFOLD: linear-elasticity per-region wiring.
+
+        The body already references its material (whose `to_elmer()` emits
+        "Youngs Modulus"); a real run also needs a Poisson Ratio material keyword
+        and the loads/supports, which are boundary conditions. Both are deferred:
+        Poisson Ratio is not yet stored on MechanicalProperties, and loads need
+        the 2D boundary groups. Left as a stub so the preset is selectable and
+        the sif generates with the right solver wired.
+        """
+        # No body-level extras yet; material + equation are already attached.
+        return
 
     # -- output --------------------------------------------------------------
 

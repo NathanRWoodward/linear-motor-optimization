@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 from rich.tree import Tree
@@ -24,8 +24,13 @@ from physical.units import (
 MU0 = 1.25663706212e-6  # H/m (N/A^2)
 
 
-def _si(value, unit) -> Optional[float]:
-    """Convert a pint quantity to a bare float in the given SI `unit`."""
+def _si(value: Any, unit: Any) -> Optional[float]:
+    """Convert a pint quantity to a bare float in the given SI `unit`.
+
+    ``value`` is a pint Quantity, a plain float (assumed already SI), or None;
+    ``unit`` is the target pint unit. Typed as ``Any`` because pint's Quantity /
+    Unit aren't generic and over-specifying here adds noise without safety.
+    """
     if value is None:
         return None
     if not hasattr(value, "to"):
@@ -48,7 +53,7 @@ class MechanicalProperties(_PropertyModel):
     ultimate_tensile_strength: Optional[Pressure] = Field(default=None, description="Ultimate tensile strength in Pa")
 
     def to_elmer(self) -> dict:
-        d = {}
+        d: dict = {}
         density = _si(self.density, U.kg / U.m**3)
         if density is not None:
             d["Density"] = density
@@ -67,7 +72,7 @@ class ThermalProperties(_PropertyModel):
     glass_transition_temperature: Optional[Temperature] = Field(default=None, description="Glass transition temperature in K")
 
     def to_elmer(self) -> dict:
-        d = {}
+        d: dict = {}
         k = _si(self.conductivity, U.W / (U.m * U.K))
         if k is not None:
             d["Heat Conductivity"] = k
@@ -83,7 +88,7 @@ class MagneticProperties(_PropertyModel):
     coercivity: Optional[FieldStrength] = Field(default=None, description="Hc: coercivity in A/m")
 
     def to_elmer(self) -> dict:
-        d = {}
+        d: dict = {}
         mu_r = self.rel_permeability
         if mu_r is not None:
             d["Relative Permeability"] = _si(mu_r, U.dimensionless)
@@ -104,7 +109,7 @@ class ElectricalProperties(_PropertyModel):
     permeability: Optional[Permeability] = Field(default=None, description="Permeability in H/m")
 
     def to_elmer(self) -> dict:
-        d = {}
+        d: dict = {}
         sigma = _si(self.conductivity, U.S / U.m)
         if sigma is not None:
             d["Electric Conductivity"] = sigma

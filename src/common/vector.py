@@ -110,14 +110,24 @@ class Vec3:
         return Vec3(self.x / scalar, self.y / scalar, self.z / scalar)
 
     def magnitude(self) -> float:
-        import math
-
+        """Euclidean length |v| of the vector."""
         return math.sqrt(self.x**2 + self.y**2 + self.z**2)
+
+    def normalized(self) -> "Vec3":
+        """Return a unit vector in the same direction.
+
+        Raises ``ValueError`` for a zero-length vector (which has no direction).
+        Callers that want to tolerate zero should check ``magnitude()`` first.
+        """
+        mag: float = self.magnitude()
+        if mag == 0:
+            raise ValueError("cannot normalize a zero-length Vec3")
+        return self / mag
 
     def __abs__(self) -> float:
         return self.magnitude()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Vec3({self.x}, {self.y}, {self.z})"
 
     def __str__(self):

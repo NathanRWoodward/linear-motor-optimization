@@ -1,87 +1,106 @@
-# Kickoff prompt — Phase 0 implementation
+# Kickoff prompt — Phase 1 implementation
 
-Paste the block below to start the next session. It begins **Phase 0** (the
-typing backbone), which everything else depends on.
-
----
-
-We're implementing the restructure planned in `docs/architecture/`. Read these
-first, in order: `README.md`, `06-typing-and-schema.md`, `04-roadmap.md`. Then
-skim `00-assessment.md` for context. (The full set is docs 00–08 covering typing,
-property functions, conditions, validation, boundaries, run lifecycle/provenance,
-and the optimization seam — but Phase 0 below only needs 06 + the roadmap.) The
-plan is approved; don't re-litigate the design — if you hit something genuinely
-underspecified, ask before improvising.
-
-Start with **Phase 0 — Typing backbone & de-duplication** (doc 06). Deliver it as
-one cohesive change with passing tests under `uv run pytest`. Concretely:
-
-1. Add `quantity_type(dimensionality)` plus named unit aliases (`Temperature`,
-   `Conductivity`, `Density`, `FluxDensity`, an unconstrained `Quantity`, and any
-   others the materials need) to `src/physical/units.py`. It must: validate
-   dimensionality at construction, serialize to a unit string, and export JSON
-   schema with the unit annotated. The approach is proven against pydantic 2.13 —
-   see the code block in doc 06; reuse it.
-2. Convert `MaterialProperties` and its sub-classes (`MechanicalProperties`,
-   `ThermalProperties`, `MagneticProperties`, `ElectricalProperties`) to Pydantic
-   v2 models using those aliases, so each field is self-documenting and a
-   wrong-dimensionality value raises at construction. Keep the existing
-   `to_elmer()` behaviour working (still emits bare SI floats). Update the three
-   material definitions (`neodymium.py`, `air.py`, `pcb.py`) to the new shape.
-3. Replace magic strings with discoverable types: a `Physics` enum and any
-   `Literal`s, and purge the `physics="magnetostatics"` string handling in
-   `src/elmer/sim.py` in favour of the enum.
-4. De-duplicate: delete the dead `src/geometry/mesh.py`, relocating its
-   per-entity bounding-box / center-of-mass extraction into a small reusable
-   helper (it'll be reused by the Phase 4 adjacency code). Remove the hardcoded
-   `known_materials` list; there should be a single material registry referenced
-   by both stages. While here, resolve the `Generator` name collision
-   (`meshing.Generator` vs `elmer.sim.Generator`) — rename to `Mesher` /
-   `SifWriter` or namespace them, since the optimization driver will import both.
-5. Expose `model_json_schema()` access for the config/material models (a small
-   function or CLI entry is fine).
-
-Tests (add under `tests/`, mirror the existing layout; pytest already works via
-UV): wrong-dimensionality raises at construction; `model_json_schema()` includes
-the unit annotation; an enum field rejects out-of-vocabulary input; a
-`model_dump()` → `model_validate()` round-trip preserves quantities; and the
-existing magnetostatics sif still generates correctly (port the standalone
-`smoke_test_sif.py` pattern into a real pytest if it isn't already).
-
-Constraints / preferences to honour (from the plan and the project owner):
-- Strong, discoverable typing is a hard requirement — good types should make docs
-  largely unnecessary, and incorrect usage should fail gracefully with a clear,
-  typed error. No magic words where an enum/Literal will do.
-- Pydantic for config/data; `typing.Protocol` for hot-path callables. Don't make
-  the generators (behaviour) into Pydantic models.
-- Don't force unification that reduces maintainability — dedupe only where it
-  removes real duplication without coupling unrelated stages (doc 06's caveat).
-- The Linux sandbox can't run the Windows gmsh build or the full CAD stack, so
-  keep Phase 0 tests pure-logic (no gmsh/build123d imports) so they run anywhere.
-
-When Phase 0 is green, stop and report what changed; we'll do Phase 1 (property
-functions, doc 05) next. Update the Status column in `docs/architecture/README.md`
-as you complete the phase.
+Phase 0 (typing backbone & de-duplication) is **complete** — 117 tests pass under
+`uv run pytest`. Paste the block below to start the next session, which begins
+**Phase 1** (property functions), the first phase that builds on the Phase 0
+backbone.
 
 ---
 
-## After Phase 0
+We're continuing the restructure planned in `docs/architecture/`. **Phase 0 is
+done** (typing backbone, doc 06) — materials are Pydantic models with
+unit-validated pint quantities, there's a `Physics` enum, a single material
+registry, and JSON-schema export. Read these first, in order:
+`docs/architecture/README.md` (status table), `05-property-functions.md` (this
+phase), `04-roadmap.md` (sequencing), and the top-level `README.md` (coding
+conventions — follow them). Skim `06-typing-and-schema.md` since Phase 1 builds
+directly on its `quantity_type` / `Quantity` alias. The plan is approved; don't
+re-litigate the design — if something is genuinely underspecified, ask before
+improvising.
+
+Implement **Phase 1 — Property functions (static → calibration → closed-form)**
+(doc 05). Deliver it as one cohesive change with passing tests under
+`uv run pytest`. Concretely:
+
+1. Add a `PropertyFunction` Protocol and a `BasePropertyFunction` (Pydantic) base
+   that implements parameter checking once, plus typed errors
+   `PropertyParameterError` and `PropertyDimensionError` (not bare `ValueError`).
+   The contract: `parameters` (name → dimensionality string), `result_dimensionality`,
+   and `__call__(**kwargs: Quantity) -> Quantity`. Put these in a new module under
+   `src/physical/` (e.g. `physical/property_functions.py`).
+2. Implement `Static` (0 params, constant) and migrate **N52 end-to-end** as
+   proof — its scalar properties become `Static(value=...)`.
+3. Implement `Calibration` (1-D interpolation from sample points; points validate
+   their units against `param_dims` at construction; explicit out-of-range
+   behaviour) and `ClosedForm` (the **locked** Python-callable form, pint-in /
+   pint-out — not the string mini-language, which stays parked).
+4. Switch the `*.to_elmer()` methods to evaluate at an operating point:
+   `to_elmer(*, at: Mapping[str, Quantity])`. Static ignores `at`; Calibration /
+   ClosedForm consume it. Strip to bare SI floats as today.
+
+**Watch the ripple (important):** changing `to_elmer()` to take `at=` touches the
+call site in `elmer/sim.py` (`SifWriter._build_materials` calls `mat.to_elmer()`)
+and the existing material/sif tests. Thread an operating point from the physics
+preset (a sensible default like `{"temperature": 300 * U.K}` is fine for the
+magnetostatics path) so the existing magnetostatics smoke sif still generates
+unchanged. Keep all 117 existing tests green.
+
+Tests (add under `tests/physical/`, mirror the existing layout): `Static` returns
+its value; `Calibration` interpolates a known 2-point line exactly at the
+endpoints and midpoint and rejects a unit-mismatched point; `ClosedForm`
+evaluates e.g. `Br(T) = Br0*(1 + alpha*(T - T0))` and round-trips units;
+missing/wrong-dimension parameters raise the typed errors; and
+`to_elmer(at=...)` yields the right SI float for each kind.
+
+Constraints / conventions to honour (from the plan, the project owner, and the
+new top-level `README.md`):
+- Strong, discoverable typing is a hard requirement; the `parameters` mapping IS
+  the schema ("call me with `temperature=<[temperature]>`"). No magic words.
+- `typing.Protocol` for the hot-path callable contract; Pydantic for the
+  config/data carriers (calibration points, etc.) — the doc 06 split.
+- ~100% type hints on parameters, returns, and locals (incl. dict/list
+  accumulators); put any reusable vector/lookup logic in a shared helper rather
+  than copy-pasting (see `Vec3` methods and `meshing.config.first_tag_value`).
+- Keep Phase 1 tests pure-logic (no gmsh / build123d imports) so they run in the
+  Linux sandbox as well as on Windows.
+- Defer (parking lot, note in `04-roadmap.md` if you touch it): N-D calibration,
+  string-expression closed form, and emitting Elmer's native tabular
+  temperature-dependency syntax.
+
+When Phase 1 is green, stop and report what changed, then update the **Status**
+column in `docs/architecture/README.md` (mark doc 05 implemented) and the Phase 1
+section of `04-roadmap.md`. We'll pick the next phase after that.
+
+---
+
+## Environment notes (carried over from Phase 0)
+
+- `uv run pytest` is the harness (`pytest` + `pythonpath=["src"]` already wired).
+  117 tests currently pass.
+- The committed `docs/schema/*.json` is generated by `python -m schemas --out
+  docs/schema`; regenerate and commit it if a model's shape changes.
+- `src/geometry/mesh.py` was deleted in Phase 0 (staged as a git deletion).
+- The renamed pipeline classes are `meshing.Mesher` and `elmer.sim.SifWriter`
+  (formerly both `Generator`).
+
+## After Phase 1
 
 Subsequent phases, each its own session/PR (see `04-roadmap.md` for full detail
-and the dependency graph):
+and the dependency graph). All need only Phase 0 unless noted:
 
-- **Phase 1** — property functions: `Static` → `Calibration` → `ClosedForm`
-  (callable form; doc 05).
-- **Phase 2** — `Magnetization` condition; remove the `magnetic_coercivity` hack (doc 02).
-- **Phase 3** — solver validation in CI (doc 03).
-- **Phase 4** — `BoundaryGroup` emission via adjacency (doc 01).
+- **Phase 2** — `Magnetization` condition; finish replacing the per-region
+  direction shim with the composable `Condition` model (doc 02). Phase 0 already
+  introduced the clean typed `magnetization_direction` field as the interim step.
+- **Phase 3** — solver validation in CI (doc 03). Cheap now that the typed config
+  exists; guards every later phase.
+- **Phase 4** — `BoundaryGroup` emission via adjacency (doc 01); reuses the
+  relocated bbox/CoM helper now in `meshing/geometry_utils.py`.
 - **Phase 5** — thermal/electrostatics boundary conditions end-to-end (docs 02+01).
 - **Phase 6** — run lifecycle: `RunManifest` provenance + typed `Result` + run
   bundles + convergence/caching seam (doc 07). Only needs Phase 0, so it can jump
   ahead of 4–5 if the optimization track is the priority.
 - **Phase 7** — optimization seam + naive grid search + `Study` tracking (doc 08).
 
-Note the two tracks after Phase 3: the **physics track** (4→5) and the
-**optimization track** (6→7) are independent given Phase 0. If the near-term goal
-is running parameter sweeps on the already-working magnetostatics path, do 6→7
-before 4→5.
+Two tracks after Phase 3: the **physics track** (4→5) and the **optimization
+track** (6→7) are independent given Phase 0. If the near-term goal is parameter
+sweeps on the already-working magnetostatics path, do 6→7 before 4→5.

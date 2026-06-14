@@ -69,3 +69,14 @@ def test_physics_accepts_enum_or_string():
 def test_bad_physics_raises_at_construction():
     with pytest.raises(ValueError):
         SifWriter(MeshingConfig(), _groups(), physics="nonsense")
+
+
+def test_linear_elasticity_sif_generates() -> None:
+    sif = _write_sif(physics=Physics.LINEAR_ELASTICITY)
+    assert "StressSolver" in sif
+    # material Youngs Modulus reaches the sif (FR4/N52 carry elastic_modulus)
+    # via the standard material block.
+
+
+def test_linear_elasticity_is_selectable_by_string() -> None:
+    assert _write_sif(physics="linear_elasticity")

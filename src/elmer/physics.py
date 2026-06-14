@@ -22,3 +22,4 @@ class Physics(StrEnum):
     MAGNETOSTATICS = "magnetostatics"
     THERMAL = "thermal"
     ELECTROSTATICS = "electrostatics"
+    LINEAR_ELASTICITY = "linear_elasticity"  # mechanical / structural (planned)

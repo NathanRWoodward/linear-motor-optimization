@@ -1,10 +1,5 @@
 """Schema-as-a-deliverable (doc 06).
 
-Every Pydantic config model can emit a JSON schema describing exactly how to
-construct it ("this is how you can use me"). This module is the small entry point
-doc 06 asks for: a function to get the schemas, a helper to dump them to
-``docs/schema/*.json`` so the committed schema tracks the code, and a CLI:
-
     python -m schemas              # print all schemas to stdout
     python -m schemas MeshingConfig
     python -m schemas --out docs/schema   # write docs/schema/*.json
@@ -20,8 +15,6 @@ from pathlib import Path
 from meshing.config import EntityTag, MeshingConfig
 from physical.materials.properties import MaterialProperties
 
-# The models worth advertising. Keyed by the name used for the JSON filename and
-# the CLI selector.
 SCHEMA_MODELS = {
     "MeshingConfig": MeshingConfig,
     "MaterialProperties": MaterialProperties,
@@ -43,29 +36,25 @@ def all_schemas() -> dict[str, dict]:
 
 
 def dump_schemas(out_dir: str | Path) -> list[Path]:
-    """Write one ``<Name>.json`` per registered model into ``out_dir``.
-
-    Returns the paths written. Used to keep ``docs/schema/`` in sync with the
-    code (optionally from CI).
-    """
-    out = Path(out_dir)
+    """Write one ``<Name>.json`` per registered model into ``out_dir``."""
+    out: Path = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    written = []
+    written: list[Path] = []
     for name, schema in all_schemas().items():
-        path = out / f"{name}.json"
+        path: Path = out / f"{name}.json"
         path.write_text(json.dumps(schema, indent=2) + "\n", encoding="utf-8")
         written.append(path)
     return written
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Export JSON schemas for the config/material models.")
+    parser: argparse.ArgumentParser = argparse.ArgumentParser(description="Export JSON schemas for the config/material models.")
     parser.add_argument("model", nargs="?", help="A single model name to print (default: all).")
     parser.add_argument("--out", metavar="DIR", help="Write <Name>.json for every model into DIR instead of printing.")
-    args = parser.parse_args(argv)
+    args: argparse.Namespace = parser.parse_args(argv)
 
     if args.out:
-        paths = dump_schemas(args.out)
+        paths: list[Path] = dump_schemas(args.out)
         for p in paths:
             print(f"wrote {p}")
         return 0

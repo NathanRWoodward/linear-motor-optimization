@@ -1,0 +1,7 @@
+# Normalize line endings to LF in the repo, regardless of the OS the file was
+# written on. Keeps `git diff` free of whole-file "everything changed" noise from
+# CRLF<->LF churn, so a real change (like a file shrinking) actually stands out.
+* text=auto eol=lf
+
+# Generated / committed schema snapshots: still text, still LF.
+docs/schema/*.json text eol=lf
