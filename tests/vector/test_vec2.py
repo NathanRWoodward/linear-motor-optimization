@@ -1,4 +1,3 @@
-import pytest
 from common.vector import Vec2
 
 
@@ -50,3 +49,31 @@ def test_vec2_rotation_negative_angle():
     v = Vec2(1, 0)
     rotated_neg_90 = v.rotate(-90, Vec2(0, 0))
     assert abs(rotated_neg_90.x) < 1e-6 and abs(rotated_neg_90.y + 1) < 1e-6
+
+
+def test_vec2_add():
+    result = Vec2(1, 2) + Vec2(3, 4)
+    assert result.x == 4 and result.y == 6
+
+
+def test_vec2_sub():
+    result = Vec2(5, 3) - Vec2(2, 1)
+    assert result.x == 3 and result.y == 2
+
+
+def test_vec2_mul():
+    result = Vec2(2, 3) * 4
+    assert result.x == 8 and result.y == 12
+
+
+def test_vec2_truediv():
+    result = Vec2(6, 4) / 2
+    assert result.x == 3 and result.y == 2
+
+
+def test_vec2_magnitude():
+    assert abs(Vec2(3, 4).magnitude() - 5.0) < 1e-9
+
+
+def test_vec2_magnitude_zero():
+    assert Vec2(0, 0).magnitude() == 0.0

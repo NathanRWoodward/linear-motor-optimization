@@ -3,6 +3,7 @@ from build123d import *
 from rich.tree import Tree
 from geometry.config import DualHalbachConfig
 from geometry.halbach import create_dual_halbach
+from meshing.config import MeshingConfig
 from meshing.generator import Generator
 from physical.materials.air import Air
 from physical.materials.neodymium import N52
@@ -95,6 +96,10 @@ def main():
     # return
 
     export_step(scene, step_filename)
+
+    mesh_config = MeshingConfig()
+    mesh_config.STEP = step_filename
+    mesh_config.materials.append([N52()])
 
     mesh_gen = Generator(step_filename)
     mesh_gen.print_tree()
