@@ -42,8 +42,13 @@ def _groups(n_tag=None):
     ]
 
 
-def _write_sif(physics=Physics.MAGNETOSTATICS, groups=None):
-    writer = SifWriter(MeshingConfig(), groups if groups is not None else _groups(), physics=physics)
+def _write_sif(physics=Physics.MAGNETOSTATICS, groups=None, validate=True):
+    writer = SifWriter(
+        MeshingConfig(),
+        groups if groups is not None else _groups(),
+        physics=physics,
+        validate=validate,
+    )
     d = Path(tempfile.mkdtemp())
     writer.write(str(d))
     return (d / "case.sif").read_text()
@@ -66,10 +71,12 @@ def test_magnet_body_gets_magnetization_body_force():
 
 
 def test_magnet_without_direction_emits_missing_marker():
-    # N52 is a magnet, but this region carries no orientation at all: the
-    # commented MISSING DIRECTION TAG marker must be preserved.
+    # N52 is a magnet, but this region carries no orientation at all. With
+    # validation on this now raises (see test_sif_validation.py); the commented
+    # MISSING DIRECTION TAG marker is the validate=False fallback and must be
+    # preserved for experiments.
     n_tag = EntityTag(tag="Mag_N")
-    sif = _write_sif(groups=_groups(n_tag=n_tag))
+    sif = _write_sif(groups=_groups(n_tag=n_tag), validate=False)
     assert "MISSING DIRECTION TAG" in sif
     assert "Magnetization 2 =" not in sif
 

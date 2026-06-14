@@ -149,17 +149,31 @@ source) and nothing reads `magnetic_coercivity` as a direction. ✅
 
 ## Phase 3 — Solver validation (pulled early, runs in CI)
 
+**Status: ✅ COMPLETE.** Landed with 150 passing tests (143 prior + 7 new in
+`tests/elmer/test_sif_validation.py`). No Pydantic model shape changed, so
+`docs/schema/*.json` is unchanged.
+
 **Doc:** [03-solver-validation.md](03-solver-validation.md). **Needs:** Phase 0
 (typed config makes the checks trivial). **Why early:** cheap once typing exists,
 and it makes every later phase fail loudly instead of at ElmerSolver runtime.
 
-- `PHYSICS_REQUIREMENTS` + `Generator.validate()` (required props, magnet
-  direction, unit-stripping/numeric sanity).
-- Promote "magnet missing direction" to a typed error.
-- Add the validation run to the test suite so misconfig is caught in CI.
+- `PHYSICS_REQUIREMENTS` (keyed by the `Physics` enum, not strings) next to
+  `PHYSICS_PRESETS`, and `SifWriter.validate()` (the class is `SifWriter`, not
+  `Generator`) covering doc 03 checks 1–3: required props per physics, numeric
+  sanity / unit-stripping, and magnet direction. Called at the end of `__init__`
+  behind a `validate: bool = True` flag; all problems accumulate into one
+  region-pointing `ValueError`.
+- Promoted "magnet missing direction" to a hard error (a zero/absent
+  `Magnetization` direction now raises); the `! Magnetization: MISSING DIRECTION
+  TAG` marker stays as the `validate=False` fallback.
+- Added the validation tests so misconfig is caught in CI.
+
+**Deferred to Phase 5 (need the Phase 4 `BoundaryGroup`s, or are low-priority
+warnings):** doc 03 check 4 (body/boundary coverage warnings) and check 5 (the
+per-solver keyword allow-list warning).
 
 **Done when:** a deliberately broken config raises a clear Python error at
-`Generator(...)` construction, exercised by a pytest.
+`SifWriter(...)` construction, exercised by a pytest. ✅
 
 ---
 

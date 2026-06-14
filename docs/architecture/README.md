@@ -25,7 +25,7 @@ group, referencing the same integer id and reusing the same name.
 | [00-assessment.md](00-assessment.md) | Current-state architecture assessment: what flexes, what fights us | Reference |
 | [01-boundaries.md](01-boundaries.md) | Plan: emit 2D (surface) physical groups via body adjacency; the biggest gap | **Planned, not implemented** |
 | [02-conditions-refactor.md](02-conditions-refactor.md) | Plan: replace the overloaded `EntityTag` with composable condition objects | **Body half implemented (Phase 2)**; boundary half pending Phase 5 |
-| [03-solver-validation.md](03-solver-validation.md) | Plan: validate solver presets against required material/BC properties | **Planned, not implemented** |
+| [03-solver-validation.md](03-solver-validation.md) | Plan: validate solver presets against required material/BC properties | **Checks 1–3 implemented (Phase 3)**; coverage/keyword-allow-list checks (4–5) pending Phase 5 |
 | [04-roadmap.md](04-roadmap.md) | Phased sequencing, dependencies, and per-phase handoff notes | Reference |
 | [05-property-functions.md](05-property-functions.md) | Plan: properties as pint-aware callables (static / calibration / closed-form) | **Implemented (Phase 1)** |
 | [06-typing-and-schema.md](06-typing-and-schema.md) | Plan: Pydantic+Protocol typing backbone, pint schema, de-duplication. The spine. | **Implemented (Phase 0)** |

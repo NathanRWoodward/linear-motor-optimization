@@ -34,6 +34,7 @@ from typing import TYPE_CHECKING, Mapping
 from elmer.physics import Physics
 from meshing.config import MeshingConfig, conditions_for
 from physical.conditions import ConditionTarget, Magnetization
+from physical.materials.properties import MaterialProperties
 from physical.units import U, Quantity
 import pyelmer.elmer as elmer
 
@@ -218,6 +219,22 @@ PHYSICS_PRESETS: dict[str, dict] = {
     },
 }
 
+# The material `to_elmer()` keys each physics' solvers require on *every* body
+# (doc 03). Keyed by the `Physics` enum, not strings (no magic words): a typo is a
+# static error and the lookup is autocomplete-discoverable. The values must match
+# the exact strings the material `to_elmer()` emits in
+# `physical/materials/properties.py`: magnetic -> "Relative Permeability",
+# thermal -> "Heat Conductivity", electrical -> "Relative Permittivity".
+# `SifWriter.validate()` checks these at construction so a body missing a required
+# property fails fast with a region-pointing Python error instead of opaquely at
+# ElmerSolver runtime. linear_elasticity is intentionally absent (no body-level
+# required property is validated yet); `.get(..., set())` yields no requirement.
+PHYSICS_REQUIREMENTS: dict[Physics, set[str]] = {
+    Physics.MAGNETOSTATICS: {"Relative Permeability"},
+    Physics.THERMAL: {"Heat Conductivity"},
+    Physics.ELECTROSTATICS: {"Relative Permittivity"},
+}
+
 
 class SifWriter:
     """Build an Elmer Simulation (and write the .sif) from a meshing config and
@@ -236,6 +253,12 @@ class SifWriter:
         physics: which physics preset to wire, as a `Physics` enum member
             (a plain string with the same value is also accepted for
             convenience). Defaults to the fully implemented magnetostatics path.
+        validate: run `validate()` (doc 03) at the end of construction so a
+            misconfigured solver setup raises a clear, region-pointing error
+            here rather than failing opaquely at ElmerSolver runtime. Set False
+            to construct a deliberately incomplete config for experiments (the
+            wiring then falls back to its in-sif markers, e.g. the magnet
+            "MISSING DIRECTION TAG" comment).
     """
 
     def __init__(
@@ -243,6 +266,7 @@ class SifWriter:
         config: MeshingConfig,
         physical_groups: list["PhysicalGroup"] | None = None,
         physics: Physics | str = Physics.MAGNETOSTATICS,
+        validate: bool = True,
     ) -> None:
         self.config: MeshingConfig = config
         self.physical_groups: list["PhysicalGroup"] = physical_groups or []
@@ -265,6 +289,70 @@ class SifWriter:
         self._equation: elmer.Equation = self._build_equation()
         self._materials: dict[str, elmer.Material] = self._build_materials()
         self._build_bodies()
+
+        if validate:
+            self.validate()
+
+    # -- validation ----------------------------------------------------------
+
+    def validate(self) -> None:
+        """Cross-object solver checks Pydantic can't see (doc 03).
+
+        Field-level validity (units, dimensionality) is already guaranteed by the
+        Pydantic config models; this pass covers the material ↔ solver coupling
+        that only emerges once a physics is chosen. Every problem is accumulated
+        and reported together, so one ``ValueError`` lists *all* misconfigurations
+        (each pointing at its region/material) instead of failing on the first.
+
+        Checks (1-3 from doc 03; 4-5 wait for the Phase 4 boundary groups):
+
+        1. **Required material properties.** Each body's material must emit the
+           ``to_elmer()`` keys this physics' solvers need (``PHYSICS_REQUIREMENTS``).
+        2. **Numeric sanity / unit stripping.** Every emitted material value must
+           be a bare number or string — a leaked pint ``Quantity`` means a
+           ``to_elmer()`` forgot to strip units.
+        3. **Magnets have a direction.** Under magnetostatics, every magnet body
+           must resolve a usable ``Magnetization`` (a non-zero direction). This is
+           the ``! Magnetization: MISSING DIRECTION TAG`` case in
+           ``_wire_magnet_body`` promoted to a hard error so a zero-field magnet
+           can't slip through (the marker stays for ``validate=False`` runs).
+        """
+        problems: list[str] = []
+        required: set[str] = PHYSICS_REQUIREMENTS.get(self.physics, set())
+
+        for group in self.physical_groups:
+            mat: MaterialProperties = group.material
+            emitted: dict = mat.to_elmer(at=self.operating_point)
+
+            # Check 1: required material properties present.
+            missing: set[str] = required - emitted.keys()
+            if missing:
+                problems.append(f"Body {group.name}: material {mat.name} missing {sorted(missing)} for physics '{self.physics.value}'")
+
+            # Check 2: numeric sanity / unit stripping.
+            for key, value in emitted.items():
+                if not isinstance(value, (int, float, str)):
+                    problems.append(
+                        f"Body {group.name}: material {mat.name} property '{key}' "
+                        f"is a {type(value).__name__}, expected a stripped number/str "
+                        f"(a to_elmer() left a pint Quantity unconverted)"
+                    )
+
+            # Check 3: magnets must resolve a usable magnetization direction.
+            if self.physics is Physics.MAGNETOSTATICS and mat.is_magnet:
+                magnetizations: list[Magnetization] = [
+                    c for c in conditions_for(group.tags, Physics.MAGNETOSTATICS, ConditionTarget.BODY) if isinstance(c, Magnetization)
+                ]
+                usable: Magnetization | None = next((m for m in magnetizations if m.direction.magnitude() != 0), None)
+                if usable is None:
+                    problems.append(
+                        f"Body {group.name}: magnet material {mat.name} has no usable "
+                        f"Magnetization condition (a non-zero direction is required "
+                        f"for physics '{self.physics.value}')"
+                    )
+
+        if problems:
+            raise ValueError("Solver configuration invalid:\n  - " + "\n  - ".join(problems))
 
     # -- sif section builders ------------------------------------------------
 
