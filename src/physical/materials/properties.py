@@ -34,15 +34,20 @@ class ThermalProperties:
 
 
 class MagneticProperties:
-    def __init__(self):
-        self.permeability: Unit = None
-        """Relative permeability (dimensionless), where 1.0 is the permeability of free space"""
+    # VACUUM_PERMEABILITY = 1.2566370614e-6 * Unit.H / Unit.m
 
-        self.remanent_magnetization: Unit = None
-        """Remanent magnetization in A/m, representing the strength of a permanent magnet"""
+    # Remanence is often given in Tesla (T), which is a unit of magnetic flux density (B).
+    # To convert remanence to remanent magnetization (M), we can use the relationship B = μ₀ * M, where μ₀ is the permeability of free space. Therefore, M = B / μ₀.
+
+    def __init__(self):
+        self.rel_permeability: Unit = None
+        """μr: Relative permeability (dimensionless), where 1.0 is the permeability of free space"""
+
+        self.remanence: Unit = None
+        """Bᵣ: Remanence in Tesla (T), representing the magnetic flux density remaining in a material after an external magnetic field is removed"""
 
         self.coercivity: Unit = None
-        """Coercivity in A/m, representing the resistance of a magnetic material to becoming demagnetized"""
+        """Hc: Coercivity in A/m, representing the resistance of a magnetic material to becoming demagnetized"""
 
 
 class ElectricalProperties:

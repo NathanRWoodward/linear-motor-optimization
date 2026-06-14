@@ -17,6 +17,7 @@ dependencies = [
     "numpy",
     "torch",
     "pint",
+    "pyelmer",
 ]
  
 [tool.uv.sources]

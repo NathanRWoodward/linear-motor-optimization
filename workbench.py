@@ -1,3 +1,4 @@
+# ruff: noqa: F401, F841
 from ocp_vscode import show
 from build123d import *
 from rich.tree import Tree
@@ -19,7 +20,7 @@ def main():
     to_display = []
 
     config = DualHalbachConfig()
-    config.debug_labels = True
+    config.debug_labels = False
 
     #  2 *N + 1 to ensure we start and end with opposite horizontal poles
     config.count = 2 * 2 + 1
@@ -117,8 +118,6 @@ def main():
         mesh_config.tags.append(tag)
 
     mesh_gen = Generator(mesh_config)
-    mesh_gen.print_tree()
+    # mesh_gen.print_tree()
 
-    print(f"{mag_strength}")
-    print(f"{U.Quantity(Magnets['Mag_E'] * mag_strength.magnitude, mag_strength.units)}")
     # generate_mesh(step_filename)

@@ -18,7 +18,7 @@ class FR4(MaterialProperties):
         self.thermal.convective_heat_transfer_coefficient = 10 * U.W / (U.m**2 * U.K)  # W/(m²·K)
         self.thermal.glass_transition_temperature = (130 * U.degC).to(U.K)  # K, typical for FR4
 
-        self.magnetic.permeability = 1.0  # Relative permeability (dimensionless)
+        self.magnetic.rel_permeability = 1.0  # Relative permeability (dimensionless)
         self.magnetic.remanent_magnetization = None
         self.magnetic.coercivity = None
 

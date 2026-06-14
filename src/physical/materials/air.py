@@ -18,8 +18,8 @@ class Air(MaterialProperties):
         self.thermal.specific_heat_capacity = 1005 * U.J / (U.kg * U.K)  # J/(kg·K) at constant pressure
         self.thermal.convective_heat_transfer_coefficient = 10 * U.W / (U.m**2 * U.K)  # W/(m²·K) (approximate for natural convection)
 
-        self.magnetic.permeability = 1.0  # Relative permeability (dimensionless)
-        self.magnetic.remanent_magnetization = None
+        self.magnetic.rel_permeability = 1.0  # Relative permeability (dimensionless)
+        self.magnetic.remanence = None
         self.magnetic.coercivity = None
 
         self.electrical.conductivity = 1e-14 * U.S / U.m  # S/m (approximate for dry air)

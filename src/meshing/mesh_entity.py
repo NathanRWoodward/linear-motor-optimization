@@ -20,6 +20,8 @@ class MeshEntity:
         self.name_raw = gmsh.model.getEntityName(dim, tag)
         self.material = self._extract_material(self.name_parts)
         self.name = " ".join(self.name_parts)
+        # Update the name
+        gmsh.model.setEntityName(dim, tag, self.name)
 
     def print_tree(self, tree: Tree):
 
