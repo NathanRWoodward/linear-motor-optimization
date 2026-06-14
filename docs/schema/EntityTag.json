@@ -1,0 +1,87 @@
+{
+  "description": "A per-region override matched to a mesh entity by name.\n\nCarries information that is not a material property but still needs to reach\nthe solver for a specific region: a magnetization direction for a magnet\nblock, a fixed boundary temperature, etc.\n\nNote on magnetization: the magnitude |M| = Br/mu0 is a material property;\nonly the direction is per-region (the same N52 block points N/E/S/W depending\non its Halbach slot). So this carries a `magnetization_direction` unit\nvector, replacing the earlier hack of riding direction on\n`magnetic_coercivity`. The full composable-condition model arrives in Phase 2.",
+  "properties": {
+    "tag": {
+      "default": "",
+      "title": "Tag",
+      "type": "string"
+    },
+    "magnetization_direction": {
+      "anyOf": [
+        {
+          "description": "3D vector {x, y, z}",
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            },
+            "z": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "x",
+            "y",
+            "z"
+          ],
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Unit vector giving the magnetization direction for a magnet region.",
+      "title": "Magnetization Direction"
+    },
+    "fixed_temperature": {
+      "anyOf": [
+        {
+          "description": "pint quantity with dimensionality [temperature]",
+          "type": "string",
+          "x-unit-dimensionality": "[temperature]"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Fixed temperature (K) boundary value",
+      "title": "Fixed Temperature"
+    },
+    "fixed_heat_flux": {
+      "anyOf": [
+        {
+          "description": "pint quantity with dimensionality [power]/[length]**2",
+          "type": "string",
+          "x-unit-dimensionality": "[power]/[length]**2"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Fixed heat flux (W/m^2) boundary value",
+      "title": "Fixed Heat Flux"
+    },
+    "convection_coefficient": {
+      "anyOf": [
+        {
+          "description": "pint quantity with dimensionality [power]/[length]**2/[temperature]",
+          "type": "string",
+          "x-unit-dimensionality": "[power]/[length]**2/[temperature]"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Convective heat transfer coefficient for a convection boundary",
+      "title": "Convection Coefficient"
+    }
+  },
+  "title": "EntityTag",
+  "type": "object"
+}

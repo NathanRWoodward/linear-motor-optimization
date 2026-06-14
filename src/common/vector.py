@@ -369,3 +369,43 @@ class CoordinateFrame:
 
     def __repr__(self):
         return f"CoordinateFrame(origin={self.origin}, orientation={self.orientation})"
+
+
+def _vec3_pydantic_schema():
+    from typing import Annotated
+    from pydantic_core import core_schema
+
+    class _V:
+        @classmethod
+        def __get_pydantic_core_schema__(cls, source, handler):
+            def validate(v):
+                if isinstance(v, Vec3):
+                    return v
+                if isinstance(v, dict):
+                    return Vec3(v["x"], v["y"], v["z"])
+                if isinstance(v, (list, tuple)) and len(v) == 3:
+                    return Vec3(v[0], v[1], v[2])
+                raise ValueError("expected a Vec3, a 3-element [x, y, z], or {x, y, z}")
+
+            return core_schema.no_info_plain_validator_function(
+                validate,
+                serialization=core_schema.plain_serializer_function_ser_schema(lambda v: {"x": v.x, "y": v.y, "z": v.z}),
+            )
+
+        @classmethod
+        def __get_pydantic_json_schema__(cls, core, handler):
+            num = {"type": "number"}
+            return {
+                "type": "object",
+                "properties": {"x": num, "y": num, "z": num},
+                "required": ["x", "y", "z"],
+                "description": "3D vector {x, y, z}",
+            }
+
+    return Annotated[Vec3, _V]
+
+
+try:
+    Vec3Field = _vec3_pydantic_schema()
+except Exception:
+    Vec3Field = Vec3

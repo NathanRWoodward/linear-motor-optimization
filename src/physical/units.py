@@ -1,34 +1,44 @@
-﻿import re
+import re
+from typing import Annotated
 
 import pint
 from pint import Unit
 from pint.delegates.formatter import Formatter
 from pint.delegates.formatter._spec_helpers import split_format
+from pydantic_core import core_schema
 from common.utils import COLORS
 
 _SCI_RE = re.compile(r"^(-?)(\d+\.?\d*)[eE][+]?(-?\d+)$")
 _SUP_TABLE = str.maketrans("0123456789+-", "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻")
 
-__all__ = ["U", "Unit"]
+__all__ = [
+    "U",
+    "Unit",
+    "quantity_type",
+    "Temperature",
+    "Conductivity",
+    "ThermalConductivity",
+    "SpecificHeat",
+    "Density",
+    "FluxDensity",
+    "FieldStrength",
+    "Pressure",
+    "HeatFlux",
+    "HeatTransferCoefficient",
+    "ElectricalConductivity",
+    "Resistivity",
+    "Permittivity",
+    "Permeability",
+    "Dimensionless",
+    "Quantity",
+]
 
 
 class RichEngineeringFormatter(Formatter):
-    """Pint formatter that wraps quantity parts in Rich markup.
-
-    Class-level style attributes control rendering:
-
-        magnitude_style  Rich style for the numeric magnitude.
-        unit_style       Rich style for each unit segment between '/' separators.
-        slash_style      Rich style for the '/' division separators.
-
-    Set any attribute to '' to leave that part unstyled.
-    """
+    """Pint formatter that wraps quantity parts in Rich markup."""
 
     default_format = ".5g~#P"
 
-    # magnitude_style: str = "#FFB86C "
-    # unit_style: str = "#8BE9FD"
-    # slash_style: str = "#8BE9FD dim"
     magnitude_style: str = COLORS.MAGNITUDE
     unit_style: str = COLORS.UNITS + " bold"
     slash_style: str = COLORS.UNITS + " "
@@ -74,8 +84,6 @@ class RichEngineeringFormatter(Formatter):
             spec = spec.replace("#", "")
             mag = quantity.magnitude
             if hasattr(mag, "x") and hasattr(mag, "y") and hasattr(mag, "z"):
-                # pint's to_compact() silently no-ops on non-Number magnitudes;
-                # use a scalar proxy (Euclidean magnitude) to pick the compact unit.
                 try:
                     scalar_proxy = self._registry.Quantity(abs(mag), quantity.units)
                     obj = quantity.to(scalar_proxy.to_compact().units)
@@ -104,3 +112,49 @@ class RichEngineeringFormatter(Formatter):
 
 U = pint.UnitRegistry(autoconvert_offset_to_baseunit=True)
 U.formatter = RichEngineeringFormatter(registry=U)
+
+
+def quantity_type(dimensionality: str):
+    """A pint Quantity constrained to a dimensionality, usable as a Pydantic field."""
+
+    class _Q:
+        @classmethod
+        def __get_pydantic_core_schema__(cls, source, handler):
+            def validate(v):
+                q = v if isinstance(v, U.Quantity) else U.Quantity(v)
+                if not q.check(dimensionality):
+                    raise ValueError(f"expected dimensionality {dimensionality}, got {q.dimensionality}")
+                return q
+
+            return core_schema.no_info_plain_validator_function(
+                validate,
+                serialization=core_schema.plain_serializer_function_ser_schema(lambda q: f"{q.magnitude} {q.units:~}"),
+            )
+
+        @classmethod
+        def __get_pydantic_json_schema__(cls, core, handler):
+            return {
+                "type": "string",
+                "x-unit-dimensionality": dimensionality,
+                "description": f"pint quantity with dimensionality {dimensionality}",
+            }
+
+    return Annotated[U.Quantity, _Q]
+
+
+Temperature = quantity_type("[temperature]")
+ThermalConductivity = quantity_type("[power]/[length]/[temperature]")
+Conductivity = ThermalConductivity
+SpecificHeat = quantity_type("[energy]/[mass]/[temperature]")
+Density = quantity_type("[mass]/[length]**3")
+FluxDensity = quantity_type("[mass]/[current]/[time]**2")
+FieldStrength = quantity_type("[current]/[length]")
+Pressure = quantity_type("[pressure]")
+HeatFlux = quantity_type("[power]/[length]**2")
+HeatTransferCoefficient = quantity_type("[power]/[length]**2/[temperature]")
+ElectricalConductivity = quantity_type("[current]**2*[time]**3/[mass]/[length]**3")
+Resistivity = quantity_type("[mass]*[length]**3/[current]**2/[time]**3")
+Permittivity = quantity_type("[current]**2*[time]**4/[mass]/[length]**3")
+Permeability = quantity_type("[mass]*[length]/[current]**2/[time]**2")
+Dimensionless = quantity_type("")
+Quantity = U.Quantity

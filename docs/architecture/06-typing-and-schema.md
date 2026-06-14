@@ -1,6 +1,6 @@
 # 06 — Typing, schema, and structural de-duplication
 
-**Status: planned, not implemented.** New direction (request set 4 + clarified
+**Status: implemented (Phase 0).** New direction (request set 4 + clarified
 2). This doc is the spine the others lean on.
 
 ## Principles (the brief, restated)
@@ -178,12 +178,12 @@ tracks the code. Decide during implementation whether that's worth the wiring.
 
 ## Handoff checklist
 
-- [ ] Add `quantity_type` + named aliases to `physical/units.py` (keystone).
-- [ ] Convert `MaterialProperties` + sub-objects to Pydantic using the aliases.
-- [ ] Introduce `Physics` enum + `Literal`s; purge magic strings from `elmer/sim.py`.
-- [ ] Delete `geometry/mesh.py`; relocate its bbox/CoM helper.
-- [ ] Establish the single material registry; remove `known_materials`.
-- [ ] Add `ElmerEmitter` / mesh-source Protocols; adopt where they remove a
+- [x] Add `quantity_type` + named aliases to `physical/units.py` (keystone).
+- [x] Convert `MaterialProperties` + sub-objects to Pydantic using the aliases.
+- [x] Introduce `Physics` enum + `Literal`s; purge magic strings from `elmer/sim.py`.
+- [x] Delete `geometry/mesh.py`; relocate its bbox/CoM helper.
+- [x] Establish the single material registry; remove `known_materials`.
+- [x] Add `ElmerEmitter` / mesh-source Protocols; adopt where they remove a
       parallel class (and only there).
-- [ ] Wire `model_json_schema()` access; optionally dump to `docs/schema/`.
-- [ ] Tests above under `uv run pytest`.
+- [x] Wire `model_json_schema()` access; optionally dump to `docs/schema/`.
+- [x] Tests above under `uv run pytest`.

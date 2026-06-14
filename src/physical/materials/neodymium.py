@@ -18,13 +18,11 @@ class N52(MaterialProperties):
         self.thermal.specific_heat_capacity = 400 * U.J / (U.kg * U.K)
         self.thermal.convective_heat_transfer_coefficient = 10 * U.W / (U.m**2 * U.K)
 
-        self.magnetic.rel_permeability = 1.05  # Relative permeability (dimensionless)
-        self.magnetic.remanence = 1.48 * U.T  # Tesla (T)
-
-        # self.magnetic.remanent_magnetization = 1.48e6 * U.A / U.m
+        self.magnetic.rel_permeability = 1.05 * U.dimensionless
+        self.magnetic.remanence = 1.48 * U.T
         self.magnetic.coercivity = 955e3 * U.A / U.m
 
-        self.electrical.conductivity = 1e6 * U.S / U.m  # S/m (approximate - good conductors)
-        self.electrical.resistivity = 1e-6 * U.ohm * U.m  # Ω·m (approximate)
-        self.electrical.permittivity = 1e-10 * U.F / U.m  # F/m (approximate)
-        self.electrical.permeability = 1e-6 * U.H / U.m  # H/m (approximate)
+        self.electrical.conductivity = 1e6 * U.S / U.m
+        self.electrical.resistivity = 1e-6 * U.ohm * U.m
+        self.electrical.permittivity = 1e-10 * U.F / U.m
+        self.electrical.permeability = 1e-6 * U.H / U.m

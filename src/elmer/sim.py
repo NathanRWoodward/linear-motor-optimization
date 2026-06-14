@@ -2,9 +2,9 @@
 
 This is the second half of the pipeline:
 
-    build123d CAD -> STEP -> gmsh (meshing.Generator) -> Elmer (this module)
+    build123d CAD -> STEP -> gmsh (meshing.Mesher) -> Elmer (this module)
 
-The gmsh `meshing.Generator` walks the STEP entities, matches each to a material
+The gmsh `meshing.Mesher` walks the STEP entities, matches each to a material
 and a set of tags (parsed from the build123d part names), and creates one gmsh
 *physical group* per (material, tags) combination. Each group is recorded as a
 `meshing.generator.PhysicalGroup` carrying:
@@ -30,6 +30,7 @@ marked with SCAFFOLD where it still needs project-specific decisions.
 from __future__ import annotations
 
 from common.vector import Vec3
+from elmer.physics import Physics
 from meshing.config import MeshingConfig
 import pyelmer.elmer as elmer
 
@@ -169,27 +170,35 @@ PHYSICS_PRESETS: dict[str, dict] = {
 }
 
 
-class Generator:
+class SifWriter:
     """Build an Elmer Simulation (and write the .sif) from a meshing config and
     its gmsh physical groups.
 
+    Formerly ``elmer.sim.Generator``; renamed to ``SifWriter`` (and the gmsh
+    side to ``meshing.Mesher``) so the optimization driver, which imports both,
+    has two unambiguous names instead of one shared ``Generator``.
+
     Args:
         config: the same MeshingConfig used to drive the gmsh mesher.
-        physical_groups: the `meshing.generator.Generator.physical_groups` list,
-            i.e. the (id, name, material, tags) records produced while meshing.
-            Optional so the Elmer generator can also be constructed standalone in
-            tests; if omitted, no bodies are created.
-        physics: which PHYSICS_PRESETS entry to wire. Defaults to the fully
-            implemented magnetostatics path.
+        physical_groups: the `meshing.Mesher.physical_groups` list, i.e. the
+            (id, name, material, tags) records produced while meshing. Optional
+            so the sif writer can also be constructed standalone in tests; if
+            omitted, no bodies are created.
+        physics: which physics preset to wire, as a `Physics` enum member
+            (a plain string with the same value is also accepted for
+            convenience). Defaults to the fully implemented magnetostatics path.
     """
 
-    def __init__(self, config: MeshingConfig, physical_groups: list | None = None, physics: str = "magnetostatics"):
+    def __init__(self, config: MeshingConfig, physical_groups: list | None = None, physics: Physics | str = Physics.MAGNETOSTATICS):
         self.config = config
         self.physical_groups = physical_groups or []
-        self.physics = physics
-        if physics not in PHYSICS_PRESETS:
-            raise ValueError(f"Unknown physics preset {physics!r}; choose from {list(PHYSICS_PRESETS)}.")
-        self.preset = PHYSICS_PRESETS[physics]
+        # Accept either the enum or its string value; normalize to the enum so a
+        # bad value fails here with a clear error rather than at preset lookup.
+        try:
+            self.physics = Physics(physics)
+        except ValueError:
+            raise ValueError(f"Unknown physics {physics!r}; choose from {[p.value for p in Physics]}.") from None
+        self.preset = PHYSICS_PRESETS[self.physics.value]
 
         self.sim = elmer.Simulation()
         self.sim.settings = dict(SIMULATION_LIBRARY[self.preset["simulation"]])
@@ -240,9 +249,9 @@ class Generator:
             body.material = self._materials[group.material.name]
             body.equation = self._equation
 
-            if self.physics == "magnetostatics":
+            if self.physics is Physics.MAGNETOSTATICS:
                 self._wire_magnet_body(body, group)
-            elif self.physics == "thermal":
+            elif self.physics is Physics.THERMAL:
                 self._wire_thermal_body(body, group)
             # electrostatics: bodies need only material + equation here;
             # potentials are applied as boundaries (SCAFFOLD, see note below).
@@ -254,11 +263,10 @@ class Generator:
 
         The magnetization magnitude |M| = Br/mu0 comes from the material. The
         *direction* is per-region and comes from the mesh tag's
-        `magnetic_coercivity` Vec3 (re-used here as the magnetization-direction
-        carrier): in a Halbach array the same N52 block points N/E/S/W depending
-        on its slot, and that orientation is encoded in the build123d part name
-        and surfaced via the EntityTag. Air / PCB regions have no remanence and
-        get no body force.
+        `magnetization_direction` Vec3: in a Halbach array the same N52 block
+        points N/E/S/W depending on its slot, and that orientation is encoded in
+        the build123d part name and surfaced via the EntityTag. Air / PCB regions
+        have no remanence and get no body force.
         """
         if not group.material.is_magnet:
             return
@@ -287,11 +295,11 @@ class Generator:
     def _magnetization_direction(self, group) -> Vec3 | None:
         """Resolve a unit magnetization direction from the region's tags.
 
-        Looks for the first tag carrying a `magnetic_coercivity` vector and
+        Looks for the first tag carrying a `magnetization_direction` vector and
         normalises it. Returns None if no oriented tag is present.
         """
         for tag in group.tags:
-            vec = getattr(tag, "magnetic_coercivity", None)
+            vec = getattr(tag, "magnetization_direction", None)
             if vec is None:
                 continue
             mag = (vec.x**2 + vec.y**2 + vec.z**2) ** 0.5

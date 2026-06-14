@@ -1,0 +1,398 @@
+{
+  "$defs": {
+    "ElectricalProperties": {
+      "properties": {
+        "conductivity": {
+          "anyOf": [
+            {
+              "description": "pint quantity with dimensionality [current]**2*[time]**3/[mass]/[length]**3",
+              "type": "string",
+              "x-unit-dimensionality": "[current]**2*[time]**3/[mass]/[length]**3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Electrical conductivity in S/m",
+          "title": "Conductivity"
+        },
+        "resistivity": {
+          "anyOf": [
+            {
+              "description": "pint quantity with dimensionality [mass]*[length]**3/[current]**2/[time]**3",
+              "type": "string",
+              "x-unit-dimensionality": "[mass]*[length]**3/[current]**2/[time]**3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Electrical resistivity in \u03a9\u00b7m",
+          "title": "Resistivity"
+        },
+        "permittivity": {
+          "anyOf": [
+            {
+              "description": "pint quantity with dimensionality [current]**2*[time]**4/[mass]/[length]**3",
+              "type": "string",
+              "x-unit-dimensionality": "[current]**2*[time]**4/[mass]/[length]**3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Permittivity in F/m",
+          "title": "Permittivity"
+        },
+        "permeability": {
+          "anyOf": [
+            {
+              "description": "pint quantity with dimensionality [mass]*[length]/[current]**2/[time]**2",
+              "type": "string",
+              "x-unit-dimensionality": "[mass]*[length]/[current]**2/[time]**2"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Permeability in H/m",
+          "title": "Permeability"
+        }
+      },
+      "title": "ElectricalProperties",
+      "type": "object"
+    },
+    "EntityTag": {
+      "description": "A per-region override matched to a mesh entity by name.\n\nCarries information that is not a material property but still needs to reach\nthe solver for a specific region: a magnetization direction for a magnet\nblock, a fixed boundary temperature, etc.\n\nNote on magnetization: the magnitude |M| = Br/mu0 is a material property;\nonly the direction is per-region (the same N52 block points N/E/S/W depending\non its Halbach slot). So this carries a `magnetization_direction` unit\nvector, replacing the earlier hack of riding direction on\n`magnetic_coercivity`. The full composable-condition model arrives in Phase 2.",
+      "properties": {
+        "tag": {
+          "default": "",
+          "title": "Tag",
+          "type": "string"
+        },
+        "magnetization_direction": {
+          "anyOf": [
+            {
+              "description": "3D vector {x, y, z}",
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                },
+                "z": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "x",
+                "y",
+                "z"
+              ],
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Unit vector giving the magnetization direction for a magnet region.",
+          "title": "Magnetization Direction"
+        },
+        "fixed_temperature": {
+          "anyOf": [
+            {
+              "description": "pint quantity with dimensionality [temperature]",
+              "type": "string",
+              "x-unit-dimensionality": "[temperature]"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Fixed temperature (K) boundary value",
+          "title": "Fixed Temperature"
+        },
+        "fixed_heat_flux": {
+          "anyOf": [
+            {
+              "description": "pint quantity with dimensionality [power]/[length]**2",
+              "type": "string",
+              "x-unit-dimensionality": "[power]/[length]**2"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Fixed heat flux (W/m^2) boundary value",
+          "title": "Fixed Heat Flux"
+        },
+        "convection_coefficient": {
+          "anyOf": [
+            {
+              "description": "pint quantity with dimensionality [power]/[length]**2/[temperature]",
+              "type": "string",
+              "x-unit-dimensionality": "[power]/[length]**2/[temperature]"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Convective heat transfer coefficient for a convection boundary",
+          "title": "Convection Coefficient"
+        }
+      },
+      "title": "EntityTag",
+      "type": "object"
+    },
+    "MagneticProperties": {
+      "properties": {
+        "rel_permeability": {
+          "anyOf": [
+            {
+              "description": "pint quantity with dimensionality ",
+              "type": "string",
+              "x-unit-dimensionality": ""
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "\u03bcr: relative permeability (dimensionless)",
+          "title": "Rel Permeability"
+        },
+        "remanence": {
+          "anyOf": [
+            {
+              "description": "pint quantity with dimensionality [mass]/[current]/[time]**2",
+              "type": "string",
+              "x-unit-dimensionality": "[mass]/[current]/[time]**2"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "B\u1d63: remanence in Tesla (T)",
+          "title": "Remanence"
+        },
+        "coercivity": {
+          "anyOf": [
+            {
+              "description": "pint quantity with dimensionality [current]/[length]",
+              "type": "string",
+              "x-unit-dimensionality": "[current]/[length]"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Hc: coercivity in A/m",
+          "title": "Coercivity"
+        }
+      },
+      "title": "MagneticProperties",
+      "type": "object"
+    },
+    "MaterialProperties": {
+      "properties": {
+        "name": {
+          "default": "",
+          "title": "Name",
+          "type": "string"
+        },
+        "tag": {
+          "default": "",
+          "title": "Tag",
+          "type": "string"
+        },
+        "mechanical": {
+          "$ref": "#/$defs/MechanicalProperties"
+        },
+        "thermal": {
+          "$ref": "#/$defs/ThermalProperties"
+        },
+        "magnetic": {
+          "$ref": "#/$defs/MagneticProperties"
+        },
+        "electrical": {
+          "$ref": "#/$defs/ElectricalProperties"
+        }
+      },
+      "title": "MaterialProperties",
+      "type": "object"
+    },
+    "MechanicalProperties": {
+      "properties": {
+        "density": {
+          "anyOf": [
+            {
+              "description": "pint quantity with dimensionality [mass]/[length]**3",
+              "type": "string",
+              "x-unit-dimensionality": "[mass]/[length]**3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "kg/m\u00b3",
+          "title": "Density"
+        },
+        "elastic_modulus": {
+          "anyOf": [
+            {
+              "description": "pint quantity with dimensionality [pressure]",
+              "type": "string",
+              "x-unit-dimensionality": "[pressure]"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Elastic (Young's) modulus in Pa",
+          "title": "Elastic Modulus"
+        },
+        "yield_strength": {
+          "anyOf": [
+            {
+              "description": "pint quantity with dimensionality [pressure]",
+              "type": "string",
+              "x-unit-dimensionality": "[pressure]"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Yield strength in Pa",
+          "title": "Yield Strength"
+        },
+        "ultimate_tensile_strength": {
+          "anyOf": [
+            {
+              "description": "pint quantity with dimensionality [pressure]",
+              "type": "string",
+              "x-unit-dimensionality": "[pressure]"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Ultimate tensile strength in Pa",
+          "title": "Ultimate Tensile Strength"
+        }
+      },
+      "title": "MechanicalProperties",
+      "type": "object"
+    },
+    "ThermalProperties": {
+      "properties": {
+        "conductivity": {
+          "anyOf": [
+            {
+              "description": "pint quantity with dimensionality [power]/[length]/[temperature]",
+              "type": "string",
+              "x-unit-dimensionality": "[power]/[length]/[temperature]"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Thermal conductivity in W/(m\u00b7K)",
+          "title": "Conductivity"
+        },
+        "specific_heat_capacity": {
+          "anyOf": [
+            {
+              "description": "pint quantity with dimensionality [energy]/[mass]/[temperature]",
+              "type": "string",
+              "x-unit-dimensionality": "[energy]/[mass]/[temperature]"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Specific heat capacity in J/(kg\u00b7K)",
+          "title": "Specific Heat Capacity"
+        },
+        "convective_heat_transfer_coefficient": {
+          "anyOf": [
+            {
+              "description": "pint quantity with dimensionality [power]/[length]**2/[temperature]",
+              "type": "string",
+              "x-unit-dimensionality": "[power]/[length]**2/[temperature]"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Convective heat transfer coefficient in W/(m\u00b2\u00b7K)",
+          "title": "Convective Heat Transfer Coefficient"
+        },
+        "glass_transition_temperature": {
+          "anyOf": [
+            {
+              "description": "pint quantity with dimensionality [temperature]",
+              "type": "string",
+              "x-unit-dimensionality": "[temperature]"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Glass transition temperature in K",
+          "title": "Glass Transition Temperature"
+        }
+      },
+      "title": "ThermalProperties",
+      "type": "object"
+    }
+  },
+  "description": "The single config that drives both the mesher and the sif writer.",
+  "properties": {
+    "materials": {
+      "items": {
+        "$ref": "#/$defs/MaterialProperties"
+      },
+      "title": "Materials",
+      "type": "array"
+    },
+    "tags": {
+      "items": {
+        "$ref": "#/$defs/EntityTag"
+      },
+      "title": "Tags",
+      "type": "array"
+    },
+    "STEP": {
+      "default": "data/geometry.step",
+      "title": "Step",
+      "type": "string"
+    },
+    "global_mesh_size": {
+      "default": 1.0,
+      "description": "Global mesh size in meters",
+      "title": "Global Mesh Size",
+      "type": "number"
+    }
+  },
+  "title": "MeshingConfig",
+  "type": "object"
+}

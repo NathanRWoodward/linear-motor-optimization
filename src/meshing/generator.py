@@ -41,8 +41,21 @@ class PhysicalGroup:
     def __repr__(self):
         return f"PhysicalGroup(id={self.id}, name={self.name!r}, material={self.material.name!r})"
 
+    def physical_group_name(self) -> str:
+        """Satisfies the `common.protocols.MeshGroupSource` protocol: the stable
+        name both the mesher and the sif writer reference this region by."""
+        return self.name
 
-class Generator:
+
+class Mesher:
+    """Walk a STEP file, match each region to a material + tags, and create one
+    gmsh physical group per (material, tags) combination.
+
+    Formerly ``meshing.Generator``; renamed to ``Mesher`` (and the Elmer side to
+    ``elmer.sim.SifWriter``) so the optimization driver can import both without a
+    name clash.
+    """
+
     def __init__(self, config: MeshingConfig):
         self.input_filename = config.STEP
 

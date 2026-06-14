@@ -1,40 +1,61 @@
+from typing import Optional
+
+from pydantic import BaseModel, ConfigDict, Field
 from rich.tree import Tree
+
 from common.utils import COLORS
-from common.vector import Vec3
+from common.vector import Vec3, Vec3Field
 from physical.materials.properties import MaterialProperties
+from physical.units import HeatFlux, HeatTransferCoefficient, Temperature
 
 
-class EntityTag:
-    def __init__(self, tag: str = ""):
-        self.tag: str = tag
+class EntityTag(BaseModel):
+    """A per-region override matched to a mesh entity by name.
 
-        self.fixed_temperature: float = None
-        """Fixed temperature in K, if applicable"""
+    Carries information that is not a material property but still needs to reach
+    the solver for a specific region: a magnetization direction for a magnet
+    block, a fixed boundary temperature, etc.
 
-        self.fixed_heat_flux: float = None
-        """Fixed heat flux in W/m², if applicable"""
+    Note on magnetization: the magnitude |M| = Br/mu0 is a material property;
+    only the direction is per-region (the same N52 block points N/E/S/W depending
+    on its Halbach slot). So this carries a `magnetization_direction` unit
+    vector, replacing the earlier hack of riding direction on
+    `magnetic_coercivity`. The full composable-condition model arrives in Phase 2.
+    """
 
-        self.magnetic_coercivity: Vec3 = None
-        """Coercivity vector in A/m, representing the magnetic moment per unit volume of a material"""
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    tag: str = ""
+
+    magnetization_direction: Optional[Vec3Field] = Field(
+        default=None,
+        description="Unit vector giving the magnetization direction for a magnet region.",
+    )
+
+    fixed_temperature: Optional[Temperature] = Field(default=None, description="Fixed temperature (K) boundary value")
+    fixed_heat_flux: Optional[HeatFlux] = Field(default=None, description="Fixed heat flux (W/m^2) boundary value")
+    convection_coefficient: Optional[HeatTransferCoefficient] = Field(
+        default=None, description="Convective heat transfer coefficient for a convection boundary"
+    )
 
     def print_tree(self, tree: Tree):
         report = tree.add(COLORS.H2(f"Tag: {self.tag}"))
-
+        if self.magnetization_direction is not None:
+            report.add(COLORS.Prop("Magnetization Direction", f"{self.magnetization_direction}"))
         if self.fixed_temperature is not None:
-            report.add(COLORS.Prop("Fixed Temperature", f"{self.fixed_temperature} K"))
-
+            report.add(COLORS.Prop("Fixed Temperature", f"{self.fixed_temperature}"))
         if self.fixed_heat_flux is not None:
-            report.add(COLORS.Prop("Fixed Heat Flux", f"{self.fixed_heat_flux} W/m²"))
+            report.add(COLORS.Prop("Fixed Heat Flux", f"{self.fixed_heat_flux}"))
+        if self.convection_coefficient is not None:
+            report.add(COLORS.Prop("Convection Coefficient", f"{self.convection_coefficient}"))
 
-        if self.magnetic_coercivity is not None:
-            report.add(COLORS.Prop("Magnetic Coercivity", f"{self.magnetic_coercivity}"))
 
+class MeshingConfig(BaseModel):
+    """The single config that drives both the mesher and the sif writer."""
 
-class MeshingConfig:
-    def __init__(self):
-        self.materials: list[MaterialProperties] = []
-        self.tags: list[EntityTag] = []
-        self.STEP: str = "data/geometry.step"
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
-        self.global_mesh_size: float = 1.0
-        """Global mesh size in meters, representing the target size of mesh elements across the entire geometry"""
+    materials: list[MaterialProperties] = Field(default_factory=list)
+    tags: list[EntityTag] = Field(default_factory=list)
+    STEP: str = "data/geometry.step"
+    global_mesh_size: float = Field(default=1.0, description="Global mesh size in meters")
