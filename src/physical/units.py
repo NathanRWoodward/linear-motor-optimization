@@ -1,32 +1,61 @@
-import pint
+﻿import pint
 from pint import Unit
+from pint.delegates.formatter import Formatter
 from pint.delegates.formatter._spec_helpers import split_format
-from pint.delegates.formatter.plain import DefaultFormatter
-from pint.delegates.formatter._format_helpers import join_mu
-
+from utils import COLORS
 
 __all__ = ["U", "Unit"]
 
-_UNIT_STYLE = "bold cyan"
 
+class RichEngineeringFormatter(Formatter):
+    """Pint formatter that wraps quantity parts in Rich markup.
 
-class RichEngineeringFormatter(DefaultFormatter):
-    """Pint formatter that wraps unit strings in Rich markup."""
+    Class-level style attributes control rendering:
+
+        magnitude_style  Rich style for the numeric magnitude.
+        unit_style       Rich style for each unit segment between '/' separators.
+        slash_style      Rich style for the '/' division separators.
+
+    Set any attribute to '' to leave that part unstyled.
+    """
 
     default_format = ".5g~#P"
 
-    def format_unit(self, unit, uspec="", sort_func=None, **babel_kwds) -> str:
-        plain = super().format_unit(unit, uspec, sort_func, **babel_kwds)
-        if not plain:
-            return plain
-        return f"[{_UNIT_STYLE}]{plain}[/{_UNIT_STYLE}]"
+    # magnitude_style: str = "#FFB86C "
+    # unit_style: str = "#8BE9FD"
+    # slash_style: str = "#8BE9FD dim"
+    magnitude_style: str = COLORS.MAGNITUDE
+    unit_style: str = COLORS.UNITS + " bold"
+    slash_style: str = COLORS.UNITS + " "
 
-    def format_quantity(self, quantity, qspec="", sort_func=None, **babel_kwds) -> str:
-        registry = self._registry
-        mspec, uspec = split_format(qspec, registry.formatter.default_format, registry.separate_format_defaults)
-        magnitude_str = self.format_magnitude(quantity.magnitude, mspec, **babel_kwds)
-        unit_str = self.format_unit(quantity.unit_items(), uspec, sort_func, **babel_kwds)
-        return join_mu("{} {}", magnitude_str, unit_str)
+    @staticmethod
+    def _tag(text: str, style: str) -> str:
+        if not style or not text:
+            return text
+        return "[" + style + "]" + text + "[/" + style + "]"
+
+    def _style_unit(self, unit_str: str) -> str:
+        if not unit_str:
+            return unit_str
+        slash = self._tag("/", self.slash_style)
+        segments = unit_str.split("/")
+        return slash.join(self._tag(seg, self.unit_style) for seg in segments)
+
+    def format_quantity(self, quantity, spec: str = "", **babel_kwds) -> str:
+        spec = spec or self.default_format
+        if "#" in spec:
+            spec = spec.replace("#", "")
+            obj = quantity.to_compact()
+        else:
+            obj = quantity
+        sub_fmt = self.get_formatter(spec)
+        mspec, uspec = split_format(spec, self.default_format, self._registry.separate_format_defaults)
+        magnitude_str = self._tag(
+            sub_fmt.format_magnitude(obj.magnitude, mspec, **babel_kwds),
+            self.magnitude_style,
+        )
+        unit_str = self._style_unit(sub_fmt.format_unit(obj.unit_items(), uspec, sort_func=self.default_sort_func, **babel_kwds))
+        return f"{magnitude_str} {unit_str}".strip()
 
 
 U = pint.UnitRegistry(autoconvert_offset_to_baseunit=True)

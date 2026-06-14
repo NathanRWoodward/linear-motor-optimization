@@ -1,12 +1,18 @@
+from hashlib import new
+
 from ocp_vscode import show
 from build123d import *
 from ocp_vscode.config import Camera
+from rich.tree import Tree
 from optimize.cad.config import DualHalbachConfig
 from optimize.cad.halbach import create_dual_halbach, create_halbach
 from optimize.constants import *
 from meshing.generator import Generator
+from physical.materials.air import Air
+from physical.materials.neodymium import N52
 from physical.units import U
 from physical.materials.pcb import FR4
+from utils import COLORS, preserve_and_format
 from rich import print
 
 
@@ -29,10 +35,16 @@ def main():
 
     config.gap = 5
 
-    tmp = FR4()
-    print(f"Density: {tmp.thermal.glass_transition_temperature}")
+    all_materials = {
+        "FR4": FR4(),
+        "N52": N52(),
+        "Air": Air(),
+    }
+    matTree = Tree(COLORS.H1("Materials"))
+    for mat in all_materials.values():
+        mat.print_tree(matTree)
 
-    print(tmp.print_tree())
+    print(matTree)
 
     # magnet = create_magnet(config, debug_labels=True)
     # to_display.append(magnet)
