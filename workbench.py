@@ -110,6 +110,7 @@ def main():
         "Mag_S": Vec3(0, -1, 0),
         "Mag_W": Vec3(-1, 0, 0),
     }
+
     for name, coercivity in Magnets.items():
         tag = EntityTag(tag=name)
         tag.magnetic_coercivity = U.Quantity(coercivity * mag_strength.magnitude, mag_strength.units)
@@ -117,4 +118,7 @@ def main():
 
     mesh_gen = Generator(mesh_config)
     mesh_gen.print_tree()
+
+    print(f"{mag_strength}")
+    print(f"{U.Quantity(Magnets['Mag_E'] * mag_strength.magnitude, mag_strength.units)}")
     # generate_mesh(step_filename)
