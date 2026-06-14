@@ -1,6 +1,9 @@
 # 02 — Conditions: replace the overloaded `EntityTag`
 
 **Status: planned, not implemented.** Addresses [00-assessment.md](00-assessment.md) #2.
+**Builds on:** the typing backbone in [06-typing-and-schema.md](06-typing-and-schema.md)
+— `Condition` subclasses are Pydantic models with typed, schema-exporting fields,
+and `physics`/`target` are an enum/`Literal`, not magic strings.
 
 ## Problem
 

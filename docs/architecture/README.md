@@ -27,6 +27,13 @@ group, referencing the same integer id and reusing the same name.
 | [02-conditions-refactor.md](02-conditions-refactor.md) | Plan: replace the overloaded `EntityTag` with composable condition objects | **Planned, not implemented** |
 | [03-solver-validation.md](03-solver-validation.md) | Plan: validate solver presets against required material/BC properties | **Planned, not implemented** |
 | [04-roadmap.md](04-roadmap.md) | Phased sequencing, dependencies, and per-phase handoff notes | Reference |
+| [05-property-functions.md](05-property-functions.md) | Plan: properties as pint-aware callables (static / calibration / closed-form) | **Planned, not implemented** |
+| [06-typing-and-schema.md](06-typing-and-schema.md) | Plan: Pydantic+Protocol typing backbone, pint schema, de-duplication. The spine. | **Planned, not implemented** |
+
+> **Read order for implementers:** [06](06-typing-and-schema.md) (backbone) →
+> [05](05-property-functions.md) → [02](02-conditions-refactor.md) →
+> [03](03-solver-validation.md) → [01](01-boundaries.md). The
+> [roadmap](04-roadmap.md) sequences these as Phases 0–5.
 
 ## How to use this folder
 
@@ -42,3 +49,16 @@ phases land.
   between two named bodies → interfaces) rather than from explicit CAD face
   labels or bounding-box rules. See [01-boundaries.md](01-boundaries.md) for the
   rationale and the escape hatch for cases adjacency can't resolve.
+- **Typing backbone: Pydantic for config, Protocol for callables.** Validated,
+  schema-exporting Pydantic models for the authoring surface; lightweight typed
+  `Protocol`s for hot-path callables (property functions, stage emitters). pint
+  quantities are made Pydantic-native via a `quantity_type` annotation that also
+  exports JSON schema. See [06-typing-and-schema.md](06-typing-and-schema.md).
+- **No magic words.** Fixed vocabularies are enums/`Literal`s, discoverable by
+  autocomplete and checked statically. Good types carry the documentation.
+- **One structure, reused.** Each concept has a single source of truth; stages
+  reference it rather than re-declaring parallel near-identical classes — applied
+  only where it removes duplication without coupling unrelated stages.
+- **Material properties are callable.** Every property is a function of zero or
+  more pint quantities (static value, calibration points, or closed-form
+  formula). See [05-property-functions.md](05-property-functions.md).

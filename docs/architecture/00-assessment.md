@@ -71,6 +71,22 @@ wasn't stripped, until ElmerSolver fails at runtime. Fine for a research tool ru
 by hand; risky inside an optimization loop that runs the pipeline hundreds of
 times. → [03-solver-validation.md](03-solver-validation.md)
 
+### 4. Parallel config structures + stringly-typed surfaces
+
+There are two parallel config worlds — `geometry/config.py` (CAD dimensions) and
+`meshing/config.py` (materials/tags) — plus a dead `geometry/mesh.py` prototype
+that re-implements material matching with a hardcoded `known_materials` list.
+Concepts risk being defined more than once and drifting. Separately, the config
+surface leans on plain Python classes and magic strings (`physics="magnetostatics"`,
+condition fields chosen from an unwritten vocabulary) with no construction-time
+validation, no schema, and weak IDE discoverability. → [06-typing-and-schema.md](06-typing-and-schema.md)
+
+### 5. Material properties are static scalars
+
+Every property is a single pint quantity. Real materials are temperature- (and
+otherwise-) dependent. There is no way to express "conductivity as a function of
+temperature" without restructuring the property type. → [05-property-functions.md](05-property-functions.md)
+
 ## Litmus test: "what does a new solver cost?"
 
 | Scenario | Cost today | After plans land |
@@ -83,6 +99,12 @@ times. → [03-solver-validation.md](03-solver-validation.md)
 The architecture is flexible along the axis already exercised (bodies/materials)
 and rigid along the axis not yet exercised (boundaries). That is normal and
 expected — you build the seams you need first. These plans build the next seam.
+
+Note the limitations split into two groups: #1 (boundaries) is the structural
+gap, while #3–#5 (validation, typing/dedup, static properties) are best solved on
+top of a typed, schema-driven backbone. That backbone ([06](06-typing-and-schema.md))
+is therefore sequenced first in the [roadmap](04-roadmap.md), with validation
+pulled early because it becomes cheap once the typed config exists.
 
 ## Guiding principle for the restructure
 

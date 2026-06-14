@@ -1,6 +1,12 @@
 # 03 — Solver validation: catch errors before ElmerSolver does
 
 **Status: planned, not implemented.** Addresses [00-assessment.md](00-assessment.md) #3.
+**Sequencing:** pulled early in the [roadmap](04-roadmap.md) (Phase 3). Once the
+typed/Pydantic config from [06-typing-and-schema.md](06-typing-and-schema.md)
+exists, much of this is nearly free — field-level validation happens at
+construction, and this doc covers the cross-object checks Pydantic can't see
+(material ↔ solver requirements). Wire it into `uv run pytest` so misconfig is
+caught in CI, not at solve time.
 
 ## Problem
 
