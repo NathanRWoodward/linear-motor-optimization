@@ -2,7 +2,7 @@
 from pint import Unit
 from pint.delegates.formatter import Formatter
 from pint.delegates.formatter._spec_helpers import split_format
-from utils import COLORS
+from common.utils import COLORS
 
 __all__ = ["U", "Unit"]
 

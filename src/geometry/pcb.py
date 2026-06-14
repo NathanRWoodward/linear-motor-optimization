@@ -1,9 +1,7 @@
 from enum import Enum
 from build123d import *
-
-from ocp_vscode import show, show_clear
-
-# from optimize.cad.mesh import generate_mesh
+from ocp_vscode import show
+from common.vector import *
 
 
 def pcb_base(length: float, height: float, thickness: float) -> Part:
@@ -31,60 +29,6 @@ def rotate_2d(point: tuple[float, float], angle: float) -> tuple[float, float]:
     return (x_new, y_new)
 
 
-class Vec2:
-    def __init__(self, x: float, y: float):
-        self.x = x
-        self.y = y
-
-    def __add__(self, other: "Vec2") -> "Vec2":
-        return Vec2(self.x + other.x, self.y + other.y)
-
-    def __sub__(self, other: "Vec2") -> "Vec2":
-        return Vec2(self.x - other.x, self.y - other.y)
-
-    def __mul__(self, scalar: float) -> "Vec2":
-        return Vec2(self.x * scalar, self.y * scalar)
-
-    def __truediv__(self, scalar: float) -> "Vec2":
-        return Vec2(self.x / scalar, self.y / scalar)
-
-    def rotate(self, angle: float, center: "Vec2" = None) -> "Vec2":
-        """Rotate the vector by a given angle in degrees around a center point"""
-        import math
-
-        if center is None:
-            center = Vec2(0, 0)
-
-        radians = math.radians(angle)
-        cos_angle = math.cos(radians)
-        sin_angle = math.sin(radians)
-
-        # Translate the point to the origin
-        translated_x = self.x - center.x
-        translated_y = self.y - center.y
-
-        # Rotate the point
-        rotated_x = translated_x * cos_angle - translated_y * sin_angle
-        rotated_y = translated_x * sin_angle + translated_y * cos_angle
-
-        # Translate back to the original position
-        final_x = rotated_x + center.x
-        final_y = rotated_y + center.y
-
-        return Vec2(final_x, final_y)
-
-    def magnitude(self) -> float:
-        import math
-
-        return math.sqrt(self.x**2 + self.y**2)
-
-
-class Rect:
-    def __init__(self, min: Vec2, max: Vec2):
-        self.min = min
-        self.max = max
-
-
 class CoilCorner:
     def __init__(
         self,
@@ -97,15 +41,12 @@ class CoilCorner:
 
         angles = [start_angle, start_angle - 45, start_angle - 90]
         vector = Vec2(radius_outside, 0)
-        self.vec_points = [
-            vector.rotate(angle, Vec2(0, 0)) + center for angle in angles
-        ]
+        self.vec_points = [vector.rotate(angle, Vec2(0, 0)) + center for angle in angles]
 
         self.points = [(p.x, p.y) for p in self.vec_points]
 
 
 class CoilTurn:
-
     def __init__(self, centers: Rect, outside_radius: float):
         self.top_left: CoilCorner = CoilCorner(
             center=Vec2(centers.min.x, centers.max.y),
@@ -222,36 +163,26 @@ def oval_coil_trace(
 
     for index, turn in enumerate(turns):
         with BuildPart() as arc_part:
-            with BuildSketch(Plane.XZ) as sketch:
-                with BuildLine() as line:
-
+            with BuildSketch(Plane.XZ):
+                with BuildLine():
                     ThreePointArc(*turn.top_left.points)
 
-                    if (
-                        turn.top_left.vec_points[-1] - turn.top_right.vec_points[0]
-                    ).magnitude() > 0.001:
+                    if (turn.top_left.vec_points[-1] - turn.top_right.vec_points[0]).magnitude() > 0.001:
                         Line(turn.top_left.points[-1], turn.top_right.points[0])
 
                     ThreePointArc(*turn.top_right.points)
 
-                    if (
-                        turn.top_right.vec_points[-1] - turn.bottom_right.vec_points[0]
-                    ).magnitude() > 0.001:
+                    if (turn.top_right.vec_points[-1] - turn.bottom_right.vec_points[0]).magnitude() > 0.001:
                         Line(turn.top_right.points[-1], turn.bottom_right.points[0])
 
                     ThreePointArc(*turn.bottom_right.points)
 
-                    if (
-                        turn.bottom_right.vec_points[-1]
-                        - turn.bottom_left.vec_points[0]
-                    ).magnitude() > 0.001:
+                    if (turn.bottom_right.vec_points[-1] - turn.bottom_left.vec_points[0]).magnitude() > 0.001:
                         Line(turn.bottom_right.points[-1], turn.bottom_left.points[0])
 
                     ThreePointArc(*turn.bottom_left.points)
 
-                    if (
-                        turn.bottom_left.vec_points[-1] - turn.top_left.vec_points[0]
-                    ).magnitude() > 0.001:
+                    if (turn.bottom_left.vec_points[-1] - turn.top_left.vec_points[0]).magnitude() > 0.001:
                         Line(turn.bottom_left.points[-1], turn.top_left.points[0])
 
                 make_face()
@@ -275,7 +206,6 @@ def oval_coil_trace(
 def test():
     # show_clear()
 
-    length = 25.4 * 4
     height = 35.0
 
     to_display = []
@@ -317,7 +247,7 @@ def test():
 
     scene = Compound(children=to_display)
     step_filename = "data/pcb_coil.step"
-    # export_step(scene, step_filename)
+    export_step(scene, step_filename)
 
     # generate_mesh(step_filename)
 

@@ -1,6 +1,4 @@
 import gmsh
-from numpy.char import title
-from rich import print
 from rich.tree import Tree
 
 KNOWN_MATERIALS = ["N52", "FR4", "Copper", "Air"]

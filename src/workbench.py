@@ -1,18 +1,14 @@
-from hashlib import new
-
 from ocp_vscode import show
 from build123d import *
-from ocp_vscode.config import Camera
 from rich.tree import Tree
-from optimize.cad.config import DualHalbachConfig
-from optimize.cad.halbach import create_dual_halbach, create_halbach
-from optimize.constants import *
+from geometry.config import DualHalbachConfig
+from geometry.halbach import create_dual_halbach
 from meshing.generator import Generator
 from physical.materials.air import Air
 from physical.materials.neodymium import N52
 from physical.units import U
 from physical.materials.pcb import FR4
-from utils import COLORS, preserve_and_format
+from common.utils import COLORS
 from rich import print
 
 

@@ -1,5 +1,4 @@
 import gmsh
-from numpy.char import title
 from rich import print
 from rich.tree import Tree
 from meshing.mesh_entity import MeshEntity

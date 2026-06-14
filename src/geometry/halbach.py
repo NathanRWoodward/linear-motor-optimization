@@ -1,10 +1,7 @@
 from build123d import *
-from ocp_vscode import show, show_clear, show_object
-from functools import singledispatch
-from optimize.cad.config import MagnetConfig, HalbachConfig, DualHalbachConfig
-import copy
-
-from optimize.cad.utils import *
+from ocp_vscode import show, show_clear
+from geometry.config import MagnetConfig, HalbachConfig, DualHalbachConfig
+from geometry.utils import *
 
 
 def create_magnet(config: MagnetConfig) -> Part:
@@ -24,9 +21,7 @@ def create_magnet(config: MagnetConfig) -> Part:
         all_parts = []
 
         # Split the magnet in half and color the two halves differently for easier visualization of the orientation
-        bottom_half, top_half = split(
-            result, bisect_by=Plane.YX.offset(-config.thickness / 2), keep=Keep.BOTH
-        )
+        bottom_half, top_half = split(result, bisect_by=Plane.YX.offset(-config.thickness / 2), keep=Keep.BOTH)
         top_half.color = (0.6, 0.1, 0.1)
         bottom_half.color = (0.1, 0.1, 0.6)
         all_parts += [top_half, bottom_half]
@@ -47,7 +42,7 @@ def create_magnet(config: MagnetConfig) -> Part:
 
         for label in labels:
             face: Face = label["face"]
-            with BuildPart(mode=Mode.PRIVATE) as label_part:
+            with BuildPart(mode=Mode.PRIVATE) as _:
                 with BuildSketch(face.offset(0.07), mode=Mode.PRIVATE) as label_sketch:
                     Text(
                         label["label"],
@@ -87,16 +82,13 @@ def create_halbach(
 
     template: Part = create_magnet(config)
 
-    loc = Location()
-
     x_pos = 0
     i = start_offset
     for _ in range(config.count):
-
         magnet = template.located(Location((x_pos, 0, 0)) * locs[i])
 
         pole_pair = (i) // 4
-        magnet.label = f"{labels[i]}_{pole_pair +1}|{material}"
+        magnet.label = f"{labels[i]}_{pole_pair + 1}|{material}"
 
         if not config.debug_labels:
             # only color the magnets if not debugging, otherwise the labels will show the magnet type
