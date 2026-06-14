@@ -1,47 +1,70 @@
-import os
-
-os.environ["NATIVE_TESSELLATOR"] = "1"
+from ocp_vscode import show
 from build123d import *
+from ocp_vscode.config import Camera
 from optimize.cad.config import DualHalbachConfig
-from optimize.cad.pcb import oval_coil_trace, CoilType
-from optimize.cad.halbach import create_dual_halbach, create_magnet, create_halbach
-from ocp_vscode import (
-    Camera,
-    Render,
-    set_defaults,
-    set_port,
-    show,
-    ignore_camera_warnings,
-    show_all,
-)
+from optimize.cad.halbach import create_dual_halbach, create_halbach
 from optimize.constants import *
+from meshing.generator import Generator
+from physical.units import U
+from physical.materials.pcb import FR4
+from rich import print
 
 
 def main():
 
-    length = 25.4 * 4
-    height = 35.0
-
     to_display = []
 
-    halbach_config = DualHalbachConfig()
-    halbach_config.debug_labels = True
+    config = DualHalbachConfig()
+    config.debug_labels = False
 
-    halbach_config.count = 4 * 4  # 2 pole pairs
+    #  2 *N + 1 to ensure we start and end with opposite horizontal poles
+    config.count = 2 * 2 + 1
 
-    halbach_config.length = IN_TO_MM * 1.0
-    halbach_config.width = IN_TO_MM * (1 / 4)
-    halbach_config.thickness = IN_TO_MM * (1 / 4)
+    config.length = (1 * U.inch).to(U.mm).magnitude
+    config.width = (1 / 4 * U.inch).to(U.mm).magnitude
+    config.thickness = (1 / 4 * U.inch).to(U.mm).magnitude
 
-    # magnet = create_magnet(halbach_config, debug_labels=True)
+    config.width = 5
+    config.thickness = 5
+
+    config.gap = 5
+
+    tmp = FR4()
+    print(f"Density: {tmp.thermal.glass_transition_temperature}")
+
+    print(tmp.print_tree())
+
+    # magnet = create_magnet(config, debug_labels=True)
     # to_display.append(magnet)
 
-    single = create_halbach(halbach_config)
+    # single = create_halbach(config, 0, clockwise=False)
+    # # single.move(Location((0, 0, config.length), (-90, 0, 0)))
+    # single.move(
+    #     Location(
+    #         (
+    #             0,
+    #             config.gap / 2,
+    #             config.length,
+    #         ),
+    #         (-90, 0, 0),
+    #     )
+    # )
+    # single.move(
+    #     Location(
+    #         (
+    #             0,
+    #             -config.thickness - config.gap / 2,
+    #             config.length,
+    #         ),
+    #         (-90, 0, 0),
+    #     )
+    # )
+    # to_display.append(single)
 
-    to_display.append(single)
+    #
 
-    # halbach = create_dual_halbach(halbach_config)
-    # to_display.append(halbach)
+    halbach = create_dual_halbach(config)
+    to_display.append(halbach)
 
     # coil_1 = oval_coil_trace(
     #     width=12,
@@ -60,6 +83,11 @@ def main():
 
     scene = Compound(children=to_display)
     step_filename = "data/pcb_coil.step"
-    # export_step(scene, step_filename)
+    show(scene, progress="", deviation=99)
+    # return
 
-    show(to_display, progress="", deviation=99)
+    export_step(scene, step_filename)
+
+    mesh_gen = Generator(step_filename)
+    mesh_gen.print_tree()
+    # generate_mesh(step_filename)

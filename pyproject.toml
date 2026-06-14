@@ -4,8 +4,31 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = ["build123d", "ocp_vscode" , "gmsh", "watchdog", "rich"]
+dependencies = [
+    "build123d",
+    "ocp_vscode" ,
+    "gmsh",
+    "watchdog",
+    "rich",
+    "Jinja2",
+    "magpylib",
+    "pydantic",
+    "pyvista[all]",
+    "numpy",
+    "torch",
+    "pint",
+]
  
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-gpu" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-gpu"
+url = "https://download.pytorch.org/whl/cu132"
+explicit = true
 
 [tool.ruff]
 lint.ignore = ["F405", "F403"]
+line-length = 150

@@ -1,21 +1,21 @@
+import os
+from types import ModuleType
+
+os.environ["NATIVE_TESSELLATOR"] = "1"
+# Preload this so it doesn't get reloaded on every change
+from ocp_vscode import ignore_camera_warnings, set_defaults, set_port
+from build123d import *
 import time
 import importlib
 import sys
 import threading
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-
-# Preload this so it doesn't get reloaded on every change
-from build123d import *
-from ocp_vscode import ignore_camera_warnings, set_defaults, set_port, show, show_clear
-import os
 from rich.console import Console
 from rich import print
+import workbench
 
 console = Console()
-
-
-import workbench
 
 
 class CodeReloaderHandler(FileSystemEventHandler):
@@ -27,10 +27,11 @@ class CodeReloaderHandler(FileSystemEventHandler):
         self._running = False
 
     def on_modified(self, event):
-        if event.is_directory or not event.src_path.endswith(".py"):
+        full_path = os.path.abspath(event.src_path)
+        if event.is_directory or not full_path.endswith(".py"):
             return
 
-        if "__pycache__" in event.src_path:
+        if "__pycache__" in full_path or full_path == __file__:
             return
 
         current_time = time.time()
@@ -42,25 +43,40 @@ class CodeReloaderHandler(FileSystemEventHandler):
             return  # A run is already in progress
 
         os.system("cls" if os.name == "nt" else "clear")
-        changed_file = os.path.relpath(event.src_path)
+
+        changed_file = os.path.relpath(full_path)
         print(f"[cyan][Hot Reload][/cyan] [yellow]{changed_file}[/yellow]")
 
         threading.Thread(target=self.run, daemon=True).start()
+
+    def _include_module(self, module: ModuleType) -> bool:
+        # Only include modules that are part of our project (in our source directory)
+        path = getattr(module, "__file__", "")
+        if not path:
+            return False
+        if "site-packages" in path or "dist-packages" in path:
+            return False
+        if not path.startswith(os.path.abspath("./src")):
+            return False
+
+        if module.__name__ == "__main__":
+            return False
+
+        return True
 
     def run(self):
         self._running = True
         try:
             start = time.time()
-            modules = list(sys.modules.keys())
             modules_to_purge = [
-                name
-                for name in modules
-                if name == "workbench" or name.startswith("optimize")
+                module
+                for module in sys.modules.values()
+                if self._include_module(module)
             ]
 
             for mod_name in modules_to_purge:
-                # print(f"Purging module: {mod_name}")
-                del sys.modules[mod_name]  # Forcibly evicts it from memory
+                # print(f"Purging module: {mod_name.__name__}")
+                del sys.modules[mod_name.__name__]  # Forcibly evicts it from memory
 
             import workbench
 
@@ -76,6 +92,7 @@ class CodeReloaderHandler(FileSystemEventHandler):
 
 
 if __name__ == "__main__":
+    os.system("cls" if os.name == "nt" else "clear")
 
     set_port(3939, host="127.0.0.1")
     set_defaults(
@@ -84,7 +101,6 @@ if __name__ == "__main__":
         edge_accuracy=0.8,  # Lowers precision of rendered edge lines
         tree_width=300,
         black_edges=False,
-        render_edges=False,
     )
     ignore_camera_warnings()
 

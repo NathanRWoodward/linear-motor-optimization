@@ -21,10 +21,10 @@ def create_magnet(config: MagnetConfig) -> Part:
 
     if config.debug_labels:
         result.color = (0.5, 0.5, 0.5, 0.0)
-        all_parts = [result]
+        all_parts = []
 
         # Split the magnet in half and color the two halves differently for easier visualization of the orientation
-        top_half, bottom_half = split(
+        bottom_half, top_half = split(
             result, bisect_by=Plane.YX.offset(-config.thickness / 2), keep=Keep.BOTH
         )
         top_half.color = (0.6, 0.1, 0.1)
@@ -43,7 +43,7 @@ def create_magnet(config: MagnetConfig) -> Part:
         ]
         labels = labels[-2:]
 
-        font_size = min(config.length, config.width)
+        font_size = min(config.thickness, config.width)
 
         for label in labels:
             face: Face = label["face"]
@@ -70,9 +70,19 @@ def create_magnet(config: MagnetConfig) -> Part:
 def create_halbach(
     config: HalbachConfig,
     start_offset: int = 0,
+    clockwise: bool = True,
+    material: str = "N52",
 ) -> Compound:
     colors = [(1, 0, 0), (0, 1, 0), (0, 0, 1), (1, 1, 0)]
     labels = ["N", "E", "S", "W"]
+
+    locs = [
+        Location(),  # North
+        Location((0, 0, config.width), (0, 90, 0)),  # East
+        Location((config.width, 0, config.thickness), (0, 180, 0)),  # South
+        Location((config.thickness, 0, 0), (0, 270, 0)),  # West
+    ]
+
     magnets: list[Part] = []
 
     template: Part = create_magnet(config)
@@ -80,18 +90,17 @@ def create_halbach(
     loc = Location()
 
     x_pos = 0
+    i = start_offset
+    for _ in range(config.count):
 
-    for i in range(config.count):
+        magnet = template.located(Location((x_pos, 0, 0)) * locs[i])
 
-        magnet = template.located(loc)
-
-        mag_type = (i + start_offset) % 4
         pole_pair = (i) // 4
-        magnet.label = f"{labels[mag_type]}_{pole_pair +1}"
+        magnet.label = f"{labels[i]}_{pole_pair +1}|{material}"
 
         if not config.debug_labels:
             # only color the magnets if not debugging, otherwise the labels will show the magnet type
-            magnet.color = colors[mag_type]
+            magnet.color = colors[i]
 
         magnets.append(magnet)
 
@@ -102,26 +111,44 @@ def create_halbach(
 
         x_pos += x_step
 
-        axis = Axis((x_pos, 0, 0), (0, 1, 0))
-        loc = rotate_around_axis(loc, axis, 90)
-        # magnets.append(create_debug_arrow(axis))
-        # magnets.append(Compound.make_triad(axes_scale=5).locate(loc))
+        if clockwise:
+            i = (i + 1) % 4
+        else:
+            i = (i - 1) % 4
 
     return Compound(children=magnets, label="Halbach Array")
 
 
 def create_dual_halbach(config: DualHalbachConfig) -> Compound:
 
-    array_1 = create_halbach(config, 0)
-    array_1.move(Location((0, (config.gap / 2) + config.thickness, 0), (90, 0, 0)))
-    array_1.label = "Halbach Array 1"
+    array_1 = create_halbach(config, 3, True)
+    array_1.move(
+        Location(
+            (
+                0,
+                config.gap / 2,
+                config.length,
+            ),
+            (-90, 0, 0),
+        )
+    )
+    array_1.label = "Side A"
 
-    array_2 = create_halbach(config, 2)
+    array_2 = create_halbach(config, 1, False)
 
-    array_2.move(Location((0, -config.gap / 2, 0), (90, 0, 0)))
-    array_2.label = "Halbach Array 2"
+    array_2.move(
+        Location(
+            (
+                0,
+                -config.thickness - config.gap / 2,
+                config.length,
+            ),
+            (-90, 0, 0),
+        )
+    )
+    array_2.label = "Side B"
 
-    return Compound(children=[array_1, array_2], label="Dual Halbach Array")
+    return Compound(children=[array_1, array_2], label="Halbach")
 
 
 if __name__ == "__main__":
