@@ -11,9 +11,9 @@ See [`docs/architecture/`](docs/architecture/) for the design docs and phased ro
 
 ## Project status
 
-**Phase 1 (property functions) is complete** — 134 tests pass via `uv run pytest`.
-Building on the Phase 0 typing backbone (Pydantic + unit-validated pint quantities, a `Physics` enum, a single material registry, JSON-schema export), every material property is now a pint-aware callable: `Static` (constant), `Calibration` (1-D interpolation), or `ClosedForm` (Python formula), all behind one typed `PropertyFunction` call site.
-`to_elmer(at=...)` evaluates each at an operating point and strips to SI.
+**Phases 0–3 are complete** — 150 tests pass via `uv run pytest`.
+On the Phase 0 typing backbone (Pydantic + unit-validated pint quantities, a `Physics` enum, a single material registry, JSON-schema export), every material property is a pint-aware callable (Phase 1): `Static` (constant), `Calibration` (1-D interpolation), or `ClosedForm` (Python formula), all behind one typed `PropertyFunction` call site; `to_elmer(at=...)` evaluates each at an operating point and strips to SI.
+Region physics is authored as composable `Condition` objects (Phase 2, body half — `Magnetization` today), and `SifWriter` validates the material ↔ solver coupling at construction (Phase 3), so a misconfigured solve fails fast with a region-pointing error instead of opaquely at ElmerSolver runtime.
 See `docs/architecture/04-roadmap.md` for the full phased sequence.
 
 ## Running tests

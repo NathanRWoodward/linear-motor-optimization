@@ -1,6 +1,6 @@
 # 03 — Solver validation: catch errors before ElmerSolver does
 
-**Status: planned, not implemented.** Addresses [00-assessment.md](00-assessment.md) #3. **Sequencing:** pulled early in the [roadmap](04-roadmap.md) (Phase 3). Once the typed/Pydantic config from [06-typing-and-schema.md](06-typing-and-schema.md) exists, much of this is nearly free — field-level validation happens at construction, and this doc covers the cross-object checks Pydantic can't see (material ↔ solver requirements). Wire it into `uv run pytest` so misconfig is caught in CI, not at solve time.
+**Status: checks 1–3 implemented (Phase 3); checks 4–5 deferred to Phase 5.** Addresses [00-assessment.md](00-assessment.md) #3. **Sequencing:** pulled early in the [roadmap](04-roadmap.md) (Phase 3). **As built:** the class is `elmer.sim.SifWriter` (not `Generator`), and `to_elmer()` is now `to_elmer(*, at=self.operating_point)` — the `Generator.validate()` / `to_elmer()` snippets below predate Phases 0–2 and are kept as the original design; see `elmer/sim.py` and `tests/elmer/test_sif_validation.py` for the shipped code. Once the typed/Pydantic config from [06-typing-and-schema.md](06-typing-and-schema.md) exists, much of this is nearly free — field-level validation happens at construction, and this doc covers the cross-object checks Pydantic can't see (material ↔ solver requirements). Wire it into `uv run pytest` so misconfig is caught in CI, not at solve time.
 
 ## Problem
 
@@ -70,8 +70,8 @@ def validate(self) -> None:
 
 ## Handoff checklist
 
-- [ ] Add `PHYSICS_REQUIREMENTS` next to `PHYSICS_PRESETS`.
-- [ ] Add `Generator.validate()` covering checks 1–3 (the high-value ones).
-- [ ] Promote the "magnet missing direction" comment to a validation error.
-- [ ] Add checks 4–5 after [01-boundaries.md](01-boundaries.md) lands.
-- [ ] Tests: a config missing `Relative Permeability` raises; a pint quantity leaking into `to_elmer()` raises; a valid config passes silently.
+- [x] Add `PHYSICS_REQUIREMENTS` next to `PHYSICS_PRESETS` (keyed by the `Physics` enum, not strings).
+- [x] Add `SifWriter.validate()` covering checks 1–3 (the high-value ones).
+- [x] Promote the "magnet missing direction" comment to a validation error (the marker stays as the `validate=False` fallback).
+- [ ] Add checks 4–5 after [01-boundaries.md](01-boundaries.md) lands (Phase 5).
+- [x] Tests: a config missing `Relative Permeability` raises; a pint quantity leaking into `to_elmer()` raises; a valid config passes silently (`tests/elmer/test_sif_validation.py`).

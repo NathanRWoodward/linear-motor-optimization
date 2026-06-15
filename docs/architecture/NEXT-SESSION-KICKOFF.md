@@ -1,55 +1,52 @@
-# Kickoff prompt — Phase 3 implementation
+# Kickoff prompt — next phase (post Phase 3)
 
-Phase 0 (typing backbone), Phase 1 (property functions), and Phase 2 (the body half of the conditions refactor — the `Magnetization` condition) are **complete** — **143 tests pass** under `uv run pytest`. Paste the block below to start the next session, which begins **Phase 3** (solver validation, pulled early so misconfig fails in CI instead of at ElmerSolver runtime).
+Phase 0 (typing backbone), Phase 1 (property functions), Phase 2 (conditions refactor — body half / `Magnetization`), and Phase 3 (solver validation) are **complete** — **150 tests pass** under `uv run pytest`, working tree clean. All `docs/architecture/` status lines, the README status table, the roadmap, and the top-level `README.md` were audited and are current as of this handoff.
+
+**You are at a fork.** Two tracks are independent given Phase 0; pick by priority (see `04-roadmap.md` dependency graph):
+
+- **Optimization track — Phase 6 (recommended).** Run lifecycle: `RunManifest` provenance + typed `Result` + run bundles + convergence/caching seam (doc 07). Only needs Phase 0, so it can jump ahead of the boundary work. This is the repo's stated north star (optimizing a motor), and it wraps the *already-working* magnetostatics path, so it delivers value without waiting on Phases 4–5. Unblocks **Phase 7** (optimization seam + naive grid search + `Study`, doc 08).
+- **Physics track — Phase 4 (alternative).** `BoundaryGroup` emission via body adjacency (doc 01); reuses the relocated bbox/CoM helper in `meshing/geometry_utils.py`. Unblocks **Phase 5** — thermal/electrostatics boundary conditions end-to-end (docs 02 boundary half + 01), which finishes the deferred boundary loop and deletes the `_wire_thermal_body` no-op stub. Pick this if usable thermal/electrostatics runs matter more than parameter sweeps.
+
+Paste the block below to start **Phase 6**. If you'd rather do the physics track, say so and read `01-boundaries.md` + the Phase 4 section of `04-roadmap.md` instead.
 
 ---
 
-We're continuing the restructure planned in `docs/architecture/`. **Phases 0–2 are done.** Phase 0 gave us the typing backbone (doc 06): materials are Pydantic models with unit-validated pint quantities, a `Physics` enum, a single material registry, and JSON-schema export. Phase 1 (doc 05) made every material property a pint-aware callable behind one typed `PropertyFunction` protocol, evaluated at an operating point via `to_elmer(*, at: Mapping[str, Quantity])`. Phase 2 (doc 02, body half) introduced composable `Condition` objects: `EntityTag` now carries **only** `tag` + `conditions: list[Condition]` (a Pydantic discriminated union keyed by `kind`), the old scalar shim fields are gone, and `_wire_magnet_body` consumes a `Magnetization` condition resolved via `meshing.config.conditions_for(tags, physics, target)`.
+We're continuing the restructure planned in `docs/architecture/`. **Phases 0–3 are done** (150 tests pass under `uv run pytest`). Phase 0 gave the typing backbone (doc 06): materials are Pydantic models with unit-validated pint quantities, a `Physics` enum, a single material registry, JSON-schema export. Phase 1 (doc 05) made every material property a pint-aware callable behind one typed `PropertyFunction`, evaluated via `to_elmer(*, at: Mapping[str, Quantity])`. Phase 2 (doc 02, body half) introduced composable `Condition` objects (`EntityTag` carries `tag` + `conditions: list[Condition]`, a discriminated union; `_wire_magnet_body` consumes a `Magnetization` resolved via `meshing.config.conditions_for`). Phase 3 (doc 03) added `SifWriter.validate()` — cross-object material↔solver checks at construction.
 
-Read these first, in order: `docs/architecture/README.md` (status table), `03-solver-validation.md` (this phase), `04-roadmap.md` (sequencing, esp. Phase 3), and the top-level `README.md` (coding conventions — follow them). Skim `06-typing-and-schema.md` (Pydantic-for-data / Protocol-for-callables split, enums not magic strings) and `02-conditions-refactor.md` (the `conditions_for` lookup and `Magnetization` you'll validate against). The plan is approved; don't re-litigate the design — if something is genuinely underspecified, ask before improvising.
+Read these first, in order: `docs/architecture/README.md` (status table), `07-run-lifecycle.md` (this phase), `04-roadmap.md` (sequencing, esp. Phase 6 — note it only needs Phase 0 and wraps the working magnetostatics path), and the top-level `README.md` (coding conventions — follow them). Skim `06-typing-and-schema.md` (Pydantic-for-data / Protocol-for-callables split, enums not magic strings; the `quantity_type`/`Vec3Quantity` annotations the manifest and `Result` reuse) and `08-optimization-seam.md` (the consumer that will call your driver, so design the driver signature with it in mind). The plan is approved; don't re-litigate the design — if something is genuinely underspecified, ask before improvising.
 
-Implement **Phase 3 — solver validation** (doc 03). Deliver it as one cohesive change with passing tests under `uv run pytest`. Concretely:
+Implement **Phase 6 — run lifecycle** (doc 07). Deliver it as one cohesive change with passing tests under `uv run pytest`. Keep all 150 existing tests green. Concretely (doc 07 §§1–4 + handoff checklist):
 
-1. **`PHYSICS_REQUIREMENTS` next to `PHYSICS_PRESETS` in `elmer/sim.py`.** Map each physics to the set of material `to_elmer()` keys its solvers need on every body. **Key it by the `Physics` enum, not strings** (no magic words): `{Physics.MAGNETOSTATICS: {"Relative Permeability"}, Physics.THERMAL: {"Heat Conductivity"}, Physics.ELECTROSTATICS: {"Relative Permittivity"}}`. (Verify the exact emitted keys against `physical/materials/properties.py` — thermal emits `"Heat Conductivity"`, electrical emits `"Relative Permittivity"`.)
+1. **`RunManifest`, `Result`, `MeshStats` Pydantic models** (doc 07 §1–3). Reuse the Phase 0 pint annotations (`quantity_type` / `Vec3Quantity` / the flux-density alias) so the manifest and result serialize for free. `RunManifest` embeds the full typed `MeshingConfig` + `Physics`. `Result` carries pint force/torque/field-max plus `residual`/`wall_time_s` and a `raw: dict` escape hatch.
+2. **A result parser module: Elmer `.dat`/log → typed `Result`** (doc 07 §2). Prefer structured `SaveScalars`/`SaveData` `.dat` output over log scraping; fall back to log parsing only for what isn't exported. **Commit a small real Elmer output fixture** and test the parser against it — no live solver needed.
+3. **`runs/<run_id>/` bundle convention + a thin driver** (doc 07 §1, §"How this interacts"). The driver assembles a run (mesh + sif + solve → parse `Result` → write `manifest.json` + `result.json`); the `Mesher`/`SifWriter` stay run-ignorant. This driver is exactly the unit the Phase 7 optimizer calls once per evaluation — design its signature accordingly.
+4. **`cache_key` / `mesh_key` computed and stored** in the manifest (doc 07 §4). **Keys only — no skip/reuse execution** (deferred to the parking lot). `cache_key` = hash of result-affecting inputs (config + step + physics + code sha); `mesh_key` = geometry-only identity, invariant to non-geometry config changes.
+5. **Optional per-region `mesh_size` + a convergence-ladder helper** (doc 07 §3). Add an optional `mesh_size` on the existing per-region tag machinery; a helper that re-runs one config at increasing refinement and reports when the quantity of interest (force) changes < tolerance, tracking `MeshStats` per run.
 
-2. **`SifWriter.validate()` covering checks 1–3 from doc 03 (the high-value ones).** Add a `validate: bool = True` parameter to `SifWriter.__init__` and call `self.validate()` at the end of `__init__` (after `_build_bodies`). Accumulate all problems into a list and raise a single `ValueError` listing every one, so a broken config fails fast at construction with a clear, region-pointing message. Cover:
-   - **Required material properties.** For each group, evaluate `group.material.to_elmer(at=self.operating_point)` (Phase 1 signature — note the `at=`, doc 03's example predates it) and assert the required keys are present; else report `Body {group.name}: material {mat.name} missing {sorted(missing)} for physics '{self.physics.value}'`.
-   - **Numeric sanity / unit stripping.** Every emitted material value must be `isinstance(v, (int, float, str))` — a leaked pint `Quantity` means a `to_elmer()` forgot to strip units. Report the offending key/material.
-   - **Magnets have a direction.** For magnetostatics, every body whose material `is_magnet` must resolve a usable `Magnetization` (via `conditions_for(group.tags, Physics.MAGNETOSTATICS, ConditionTarget.BODY)`, a non-zero `direction`). This is exactly the `! Magnetization: MISSING DIRECTION TAG` case in `_wire_magnet_body` today — **promote it to a validation error** so a zero-field magnet can't slip through. (Leave the comment marker in the wiring for when `validate=False`.)
+**Tests** (doc 07 §"Testing", pure-logic so they run in the Linux sandbox): `RunManifest`/`Result` round-trip (`model_dump` → `model_validate`) with pint quantities preserved; `cache_key` stable for identical configs, differs on a result-affecting field, *unchanged* by a cosmetic field like `notes`; the parser against the committed fixture yields the expected force/residual; `mesh_key` invariant to non-geometry changes. Keep the standalone fake-`PhysicalGroup` pattern (see `tests/elmer/test_sif_smoke.py`) for anything touching the generators.
 
-3. **Wire validation into the test suite.** Add the validation run to pytest so misconfig is caught in CI (doc 03 §"Goal"). Use the existing standalone fake-`PhysicalGroup` pattern (see `tests/elmer/test_sif_smoke.py`) so the tests stay pure-logic and run in the Linux sandbox.
+**Constraints / conventions** (from the plan, the owner, and the top-level `README.md`):
+- ~100% type hints on parameters, returns, and locals.
+- **No magic words:** statuses are `Literal`s/enums; reuse `Physics`, the pint annotations, and existing tag machinery rather than re-deriving.
+- **Build the seam, not the cathedral** (doc 07 §"Guiding constraint"): manifest = Pydantic model + directory convention, not a database; caching = keys now, skip/reuse logic later; convergence = a documented ladder, not adaptive remeshing.
+- Keep tests pure-logic (no gmsh / build123d / live ElmerSolver) so they run in the sandbox.
+- This phase **adds** Pydantic models (`RunManifest`/`Result`/`MeshStats`) and may add an optional `mesh_size` field — so `docs/schema/*.json` **will** change. Regenerate with `PYTHONPATH=src uv run python -m schemas --out docs/schema` and commit it. (`.gitattributes` normalizes to LF; `Path.write_text` emits CRLF on Windows, so `git checkout -- docs/schema/<file>` any file whose only diff is CRLF churn.)
 
-**Corrections to doc 03 (written before Phases 0–2):**
-- The class is **`elmer.sim.SifWriter`**, not `Generator`.
-- `to_elmer()` is now **`to_elmer(*, at=...)`**; call it with `at=self.operating_point`. The doc's `group.material.to_elmer()` example omits this — don't copy it verbatim.
-- "Magnet missing direction" is now a **`Magnetization` condition** resolved via `conditions_for`, not a scalar tag field. Reuse that helper; don't re-derive the lookup.
-- `PHYSICS_REQUIREMENTS` is keyed by the **`Physics` enum** (the doc shows string keys).
+**Defer to the parking lot** (doc 07 §4 + roadmap "Out of scope"): cache skip/reuse *execution*, mesh-reuse-across-solves, adaptive/error-driven remeshing. Compute the keys; don't act on them.
 
-**Defer (checks 4–5, doc 03):** body/boundary coverage warnings and the per-solver keyword allow-list both need the Phase 4 `BoundaryGroup`s and/or are explicitly low-priority warnings — leave them to Phase 5. Note this in `04-roadmap.md` if you touch it.
-
-Tests (add under `tests/elmer/`, mirror the existing layout): a magnetostatics config whose material lacks `Relative Permeability` raises at `SifWriter(...)` construction; a `to_elmer()` that leaks a pint quantity raises; a magnet body with no `Magnetization` condition raises (and `validate=False` suppresses it, falling back to the comment marker); a valid config passes silently. Keep all 143 existing tests green — note that `tests/elmer/test_sif_smoke.py` builds magnet groups **with** a `Magnetization` condition, so they stay valid; the `test_magnet_without_direction_emits_missing_marker` test must now pass `validate=False` (or be updated to assert the new error).
-
-Constraints / conventions to honour (from the plan, the project owner, and the top-level `README.md`):
-- ~100% type hints on parameters, returns, and locals (incl. the `problems` list and loop-derived values).
-- **No magic words:** `PHYSICS_REQUIREMENTS` keyed by `Physics`; reuse `ConditionTarget` and `conditions_for` rather than open-coding tag iteration.
-- Keep Phase 3 tests pure-logic (no gmsh / build123d) so they run in the Linux sandbox as well as on Windows.
-- Phase 3 does **not** change any Pydantic model shape, so `docs/schema/*.json` should be unchanged — don't regenerate it unless a model actually changes.
-
-**Done when:** a deliberately broken config raises a clear Python error at `SifWriter(...)` construction, exercised by a pytest, and the existing smoke sif still generates. When Phase 3 is green, stop and report what changed, then update the **Status** column in `docs/architecture/README.md` (mark doc 03 implemented) and the Phase 3 section of `04-roadmap.md`. We'll pick the next phase after that.
+**Done when:** one solve (or a fixture-driven dry run) produces a self-describing `runs/<run_id>/` bundle with a typed, unit-carrying `Result` and a `RunManifest`, the parser is covered by a committed fixture test, and all keys are stored. When Phase 6 is green, stop and report what changed, then update the **Status** column in `docs/architecture/README.md` (mark doc 07 implemented), the Phase 6 section of `04-roadmap.md`, the top-level `README.md` status block, and **replace this kickoff doc** to stage **Phase 7** (doc 08).
 
 ---
 
 ## Environment notes (carried over)
 
-- `uv run pytest` is the harness (`pytest` + `pythonpath=["src"]` already wired). **143 tests currently pass.**
-- The committed `docs/schema/*.json` is generated by `python -m schemas --out docs/schema` — it needs `src` on the path, so run it as `PYTHONPATH=src uv run python -m schemas --out docs/schema`. Regenerate and commit it **only** when a model's shape changes (Phase 3 does not). `.gitattributes` normalizes to LF; `Path.write_text` emits CRLF on Windows, so the working copy may show schema files as modified with only CRLF churn — `git checkout -- docs/schema/<file>` if the content is genuinely unchanged.
-- The renamed pipeline classes are `meshing.Mesher` and `elmer.sim.SifWriter`.
-- The `SifWriter` evaluates properties at `DEFAULT_OPERATING_POINT = {"temperature": 300 K}` (per-preset `operating_point`).
+- `uv run pytest` is the harness (`pytest` + `pythonpath=["src"]` already wired). **150 tests currently pass.**
+- The committed `docs/schema/*.json` is generated by `python -m schemas --out docs/schema`; it needs `src` on the path, so run `PYTHONPATH=src uv run python -m schemas --out docs/schema`. Regenerate and commit **only** when a model's shape changes — **Phase 6 does change model shapes**, so regenerate it. CRLF caveat above.
+- Pipeline classes are `meshing.Mesher` and `elmer.sim.SifWriter`. The `SifWriter` evaluates properties at `DEFAULT_OPERATING_POINT = {"temperature": 300 K}` (per-preset `operating_point`).
 - Conditions live in `src/physical/conditions.py` (`Condition`, `Magnetization`, `FixedTemperature`, `HeatFlux`, `Convection`, `ConditionTarget`, `ConditionUnion`). The thermal carriers are data-only until Phase 5 wires the boundary loop.
+- Phase 0 relocated a bbox/center-of-mass helper into `meshing/geometry_utils.py` for Phase 4 adjacency — not needed for Phase 6, noted for the alternative track.
 
-## After Phase 3
+## After Phase 6
 
-Subsequent phases, each its own session/PR (see `04-roadmap.md` for full detail and the dependency graph). **Two tracks open up once Phase 3 lands** — they are independent given Phase 0, so pick by priority:
-
-- **Physics track:** **Phase 4** — `BoundaryGroup` emission via adjacency (doc 01); reuses the relocated bbox/CoM helper in `meshing/geometry_utils.py`. Unblocks **Phase 5** — thermal/electrostatics boundary conditions end-to-end (docs 02+01): finishes the deferred boundary loop and deletes the `_wire_thermal_body` no-op stub.
-- **Optimization track:** **Phase 6** — run lifecycle: `RunManifest` provenance + typed `Result` + run bundles + convergence/caching seam (doc 07). Only needs Phase 0, so it can jump ahead of 4–5 if parameter sweeps on the already-working magnetostatics path are the priority. Unblocks **Phase 7** — optimization seam + naive grid search + `Study` tracking (doc 08).
+- **Phase 7** — optimization seam + naive grid search + `Study` tracking (doc 08): `Parameterization` (point → `MeshingConfig`), an `Objective` Protocol + one concrete objective (maximize net force), `Study`/`StudyRecord` + `to_dataframe()`/`best()`, and a `GridSearch` walking the grid via the Phase 6 driver. Proven by a fake-driver test (no solve). **Needs Phase 6.**
+- **Phases 4–5** (physics track) remain open and independent if usable thermal/electrostatics runs become the priority — see `04-roadmap.md`.
