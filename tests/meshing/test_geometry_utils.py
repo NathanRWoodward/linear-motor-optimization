@@ -1,5 +1,7 @@
-"""Phase 0: the bbox/center-of-mass helper relocated from the deleted
-geometry/mesh.py. Pure dataclass logic; no gmsh import."""
+"""
+Phase 0: the bbox/center-of-mass helper relocated from the deleted geometry/mesh.py.
+Pure dataclass logic; no gmsh import.
+"""
 
 from meshing.geometry_utils import EntityGeometry
 

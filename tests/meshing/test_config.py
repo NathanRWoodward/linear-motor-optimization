@@ -1,6 +1,7 @@
-"""EntityTag / MeshingConfig as Pydantic models carrying composable conditions
-(doc 02). The per-region data a tag carries is a `list[Condition]`; there are no
-flat scalar override fields."""
+"""
+EntityTag / MeshingConfig as Pydantic models carrying composable conditions (doc 02).
+The per-region data a tag carries is a `list[Condition]`; there are no flat scalar override fields.
+"""
 
 import pytest
 from pydantic import ValidationError

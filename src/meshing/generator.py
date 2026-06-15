@@ -9,14 +9,11 @@ from itertools import groupby
 
 
 class PhysicalGroup:
-    """A single gmsh physical group, and the metadata needed to reconstruct the
-    matching Elmer body.
+    """
+    A single gmsh physical group, and the metadata needed to reconstruct the matching Elmer body.
 
-    This is the shared contract between the gmsh mesher and the Elmer sif
-    generator: both refer to a region by the same `name`, and Elmer references
-    it in the mesh by the same integer `id` that gmsh assigned. Without keeping
-    this id around, the Elmer `Target Bodies(...)` would have nothing to point
-    at.
+    This is the shared contract between the gmsh mesher and the Elmer sif generator: both refer to a region by the same `name`, and Elmer references it in the mesh by the same integer `id` that gmsh assigned.
+    Without keeping this id around, the Elmer `Target Bodies(...)` would have nothing to point at.
     """
 
     def __init__(self, dim: int, gmsh_id: int, name: str, material: MaterialProperties, tags: list[EntityTag], entity_tags: list[int]):
@@ -24,16 +21,17 @@ class PhysicalGroup:
         """Topological dimension of the group (3 = volume/body, 2 = surface/boundary)."""
 
         self.id = gmsh_id
-        """The gmsh physical-group tag. This is the integer Elmer uses to target
-        the region (ElmerGrid preserves physical-group ids as body/boundary ids)."""
+        """
+        The gmsh physical-group tag.
+        This is the integer Elmer uses to target the region (ElmerGrid preserves physical-group ids as body/boundary ids).
+        """
 
         self.name = name
         """The compound MATERIAL_TAG1_TAG2 name, shared verbatim with Elmer."""
 
         self.material = material
         self.tags = tags
-        """The EntityTag objects matched to this group (carry per-region overrides
-        like fixed temperature, heat flux, and magnetization direction)."""
+        """The EntityTag objects matched to this group (carry per-region overrides like fixed temperature, heat flux, and magnetization direction)."""
 
         self.entity_tags = entity_tags
         """The gmsh entity (volume) tags that make up this group."""
@@ -42,18 +40,15 @@ class PhysicalGroup:
         return f"PhysicalGroup(id={self.id}, name={self.name!r}, material={self.material.name!r})"
 
     def physical_group_name(self) -> str:
-        """Satisfies the `common.protocols.MeshGroupSource` protocol: the stable
-        name both the mesher and the sif writer reference this region by."""
+        """Satisfies the `common.protocols.MeshGroupSource` protocol: the stable name both the mesher and the sif writer reference this region by."""
         return self.name
 
 
 class Mesher:
-    """Walk a STEP file, match each region to a material + tags, and create one
-    gmsh physical group per (material, tags) combination.
+    """
+    Walk a STEP file, match each region to a material + tags, and create one gmsh physical group per (material, tags) combination.
 
-    Formerly ``meshing.Generator``; renamed to ``Mesher`` (and the Elmer side to
-    ``elmer.sim.SifWriter``) so the optimization driver can import both without a
-    name clash.
+    Formerly ``meshing.Generator``; renamed to ``Mesher`` (and the Elmer side to ``elmer.sim.SifWriter``) so the optimization driver can import both without a name clash.
     """
 
     def __init__(self, config: MeshingConfig):
@@ -95,9 +90,7 @@ class Mesher:
 
             raise Exception("All entities must have an associated material. Please check the error messages above.")
 
-        # Shared mesh<->sim contract: every physical group we create here is
-        # recorded so the Elmer sif generator can build a matching body that
-        # targets the same gmsh id and reuses the same compound name.
+        # Shared mesh<->sim contract: every physical group we create here is recorded so the Elmer sif generator can build a matching body that targets the same gmsh id and reuses the same compound name.
         self.physical_groups: list[PhysicalGroup] = []
 
         for material, entities in self.EntitiesByMaterial.items():
@@ -118,9 +111,8 @@ class Mesher:
                 mesh_material = gmsh.model.addPhysicalGroup(3, entity_volume_tags, name=group_name)
                 gmsh.model.setPhysicalName(3, mesh_material, group_name)
 
-                # Resolve the EntityTag objects (not just their string keys) so
-                # the Elmer generator can read per-region overrides. All entities
-                # in a group share the same tag set by construction.
+                # Resolve the EntityTag objects (not just their string keys) so the Elmer generator can read per-region overrides.
+                # All entities in a group share the same tag set by construction.
                 tag_objs = tagged_entities[0].entity_tags if tagged_entities else []
                 self.physical_groups.append(
                     PhysicalGroup(

@@ -4,14 +4,12 @@ from physical.units import U
 
 
 class N52(MaterialProperties):
-    """N52 neodymium magnet.
+    """
+    N52 neodymium magnet.
 
-    Phase 1 migration proof (doc 05): every scalar property is now an explicit
-    ``Static`` property function rather than a raw quantity. The authoring reads
-    almost the same — ``Static(value=...)`` instead of the bare quantity — and
-    the value flows through the same ``to_elmer(at=...)`` call site as a
-    Calibration or ClosedForm would. (Air / FR4 still assign bare quantities,
-    which the field coerces into a Static, so both styles are exercised.)
+    Phase 1 migration proof (doc 05): every scalar property is now an explicit ``Static`` property function rather than a raw quantity.
+    The authoring reads almost the same — ``Static(value=...)`` instead of the bare quantity — and the value flows through the same ``to_elmer(at=...)`` call site as a Calibration or ClosedForm would.
+    (Air / FR4 still assign bare quantities, which the field coerces into a Static, so both styles are exercised.)
     """
 
     def __init__(self):

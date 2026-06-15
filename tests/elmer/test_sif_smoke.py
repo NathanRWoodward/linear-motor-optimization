@@ -1,7 +1,7 @@
-"""Phase 0 smoke test: the magnetostatics sif still generates correctly.
+"""
+Phase 0 smoke test: the magnetostatics sif still generates correctly.
 
-Uses a fake PhysicalGroup (the standalone fake-group pattern) so it needs no
-gmsh — just the typed config + materials + the SifWriter.
+Uses a fake PhysicalGroup (the standalone fake-group pattern) so it needs no gmsh — just the typed config + materials + the SifWriter.
 """
 
 import re
@@ -61,8 +61,7 @@ def test_magnetostatics_sif_generates():
 
 
 def test_magnet_body_gets_magnetization_body_force():
-    # The N-pointing magnet's orientation is carried by a Magnetization condition;
-    # |M| = Br/mu0 comes from the N52 material.
+    # The N-pointing magnet's orientation is carried by a Magnetization condition; |M| = Br/mu0 comes from the N52 material.
     sif = _write_sif()
     m = re.search(r"Magnetization 2 = ([-0-9.eE+]+)", sif)
     assert m, "expected a Magnetization 2 keyword for the N-pointing magnet"
@@ -71,10 +70,8 @@ def test_magnet_body_gets_magnetization_body_force():
 
 
 def test_magnet_without_direction_emits_missing_marker():
-    # N52 is a magnet, but this region carries no orientation at all. With
-    # validation on this now raises (see test_sif_validation.py); the commented
-    # MISSING DIRECTION TAG marker is the validate=False fallback and must be
-    # preserved for experiments.
+    # N52 is a magnet, but this region carries no orientation at all.
+    # With validation on, this raises (see test_sif_validation.py); the MISSING DIRECTION TAG marker is the validate=False fallback, for experiments.
     n_tag = EntityTag(tag="Mag_N")
     sif = _write_sif(groups=_groups(n_tag=n_tag), validate=False)
     assert "MISSING DIRECTION TAG" in sif
@@ -94,8 +91,7 @@ def test_bad_physics_raises_at_construction():
 def test_linear_elasticity_sif_generates() -> None:
     sif = _write_sif(physics=Physics.LINEAR_ELASTICITY)
     assert "StressSolver" in sif
-    # material Youngs Modulus reaches the sif (FR4/N52 carry elastic_modulus)
-    # via the standard material block.
+    # material Youngs Modulus reaches the sif (FR4/N52 carry elastic_modulus) via the standard material block.
 
 
 def test_linear_elasticity_is_selectable_by_string() -> None:

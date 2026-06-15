@@ -1,32 +1,20 @@
 # 05 — Property functions: properties as pint-aware callables
 
-**Status: implemented (Phase 1).** New direction (request set 2). Depends on
-the typing backbone in [06-typing-and-schema.md](06-typing-and-schema.md). Lives
-in `physical/property_functions.py`; the material fields use the coercing
-`property_function_type` so bare quantities still authorable as before.
+**Status: implemented (Phase 1).** New direction (request set 2). Depends on the typing backbone in [06-typing-and-schema.md](06-typing-and-schema.md). Lives in `physical/property_functions.py`; the material fields use the coercing `property_function_type` so bare quantities still authorable as before.
 
 ## Goal
 
-A material property is not always a constant. Thermal conductivity, remanence,
-elastic modulus etc. depend on temperature (and sometimes other quantities). We
-want every material property to be a **callable that takes zero or more named
-pint quantities and returns a pint quantity**, with three concrete
-implementations of increasing richness:
+A material property is not always a constant. Thermal conductivity, remanence, elastic modulus etc. depend on temperature (and sometimes other quantities). We want every material property to be a **callable that takes zero or more named pint quantities and returns a pint quantity**, with three concrete implementations of increasing richness:
 
-1. **Static** — 0 parameters, a constant value (the starting point; what we have
-   today, lifted into the new shape).
+1. **Static** — 0 parameters, a constant value (the starting point; what we have today, lifted into the new shape).
 2. **Calibration** — N parameters, defined by sample/interpolation points.
 3. **ClosedForm** — N parameters, defined by an explicit formula.
 
-All three share one typed interface, so a property's *call site* never cares
-which kind it is.
+All three share one typed interface, so a property's *call site* never cares which kind it is.
 
 ## The callable contract (Protocol)
 
-Property functions are on the hot path and don't need Pydantic; they need a
-discoverable, typed signature. We express the contract as a `Protocol`
-([06-typing-and-schema.md](06-typing-and-schema.md) explains why Protocol here
-and Pydantic for config).
+Property functions are on the hot path and don't need Pydantic; they need a discoverable, typed signature. We express the contract as a `Protocol` ([06-typing-and-schema.md](06-typing-and-schema.md) explains why Protocol here and Pydantic for config).
 
 ```python
 # illustrative
@@ -59,16 +47,11 @@ class PropertyFunction(Protocol):
         ...
 ```
 
-Because `parameters` advertises name→dimensionality, the object is
-self-documenting: an IDE/inspection (or a generated JSON schema) shows the user
-"call me with `temperature=<[temperature]>`" without external docs. This is the
-"schema tells the user how to use me" requirement applied to the dynamic part of
-the system.
+Because `parameters` advertises name→dimensionality, the object is self-documenting: an IDE/inspection (or a generated JSON schema) shows the user "call me with `temperature=<[temperature]>`" without external docs. This is the "schema tells the user how to use me" requirement applied to the dynamic part of the system.
 
 ### Shared validation base
 
-A small base class implements the parameter-checking once so the three concrete
-types only implement evaluation:
+A small base class implements the parameter-checking once so the three concrete types only implement evaluation:
 
 ```python
 class BasePropertyFunction(BaseModel):     # pydantic model -> validated + schema
@@ -107,14 +90,11 @@ class Static(BasePropertyFunction):
 # value()  ->  8.7 W/(m*K)
 ```
 
-This is the migration target for every current scalar property. `to_elmer()`
-calls the property with no args (or with a reference temperature) and strips to
-SI — see "Integration" below.
+This is the migration target for every current scalar property. `to_elmer()` calls the property with no args (or with a reference temperature) and strips to SI — see "Integration" below.
 
 ## 2) Calibration — interpolation from sample points
 
-For data like "conductivity measured at 20°C, 60°C, 100°C". One or more
-parameters; points carry their own pint units.
+For data like "conductivity measured at 20°C, 60°C, 100°C". One or more parameters; points carry their own pint units.
 
 ```python
 class Calibration(BasePropertyFunction):
@@ -132,19 +112,13 @@ class Calibration(BasePropertyFunction):
 ```
 
 Design notes:
-- **1-D first** (single parameter, e.g. temperature) using numpy interp; the type
-  signature already allows N-D so the closed form of the API doesn't change when
-  N-D lands.
-- Points validate at construction: every point's inputs must match `param_dims`
-  by name and dimensionality (Pydantic validator) — a typo is caught immediately,
-  not at evaluation deep in a solve.
-- Out-of-range behaviour is an explicit field (`extrapolate: bool` /
-  `clamp`), not a silent default.
+- **1-D first** (single parameter, e.g. temperature) using numpy interp; the type signature already allows N-D so the closed form of the API doesn't change when N-D lands.
+- Points validate at construction: every point's inputs must match `param_dims` by name and dimensionality (Pydantic validator) — a typo is caught immediately, not at evaluation deep in a solve.
+- Out-of-range behaviour is an explicit field (`extrapolate: bool` / `clamp`), not a silent default.
 
 ## 3) ClosedForm — explicit formula
 
-For properties with a known analytic temperature dependence (e.g. linear
-remanence falloff `Br(T) = Br0 * (1 + alpha*(T - T0))`).
+For properties with a known analytic temperature dependence (e.g. linear remanence falloff `Br(T) = Br0 * (1 + alpha*(T - T0))`).
 
 ```python
 class ClosedForm(BasePropertyFunction):
@@ -161,18 +135,11 @@ class ClosedForm(BasePropertyFunction):
         return self.expression(**kwargs)
 ```
 
-**Decision (locked):** `expression` is a **Python callable** (pint-in / pint-out).
-Simplest, fully pint-aware, good for in-code material definitions. It is not
-JSON-serializable (it's code) — that's an accepted trade-off for now. A
-string/expression mini-language for config-file-defined formulas is explicitly
-**deferred** to the parking lot ([04-roadmap.md](04-roadmap.md)) until a concrete
-material-database / config-file use case demands it.
+**Decision (locked):** `expression` is a **Python callable** (pint-in / pint-out). Simplest, fully pint-aware, good for in-code material definitions. It is not JSON-serializable (it's code) — that's an accepted trade-off for now. A string/expression mini-language for config-file-defined formulas is explicitly **deferred** to the parking lot ([04-roadmap.md](04-roadmap.md)) until a concrete material-database / config-file use case demands it.
 
 ## Integration with `to_elmer()` and the rest
 
-`MaterialProperties` sub-objects hold `PropertyFunction`s instead of raw
-quantities. `to_elmer()` evaluates them at a reference operating point and strips
-to SI:
+`MaterialProperties` sub-objects hold `PropertyFunction`s instead of raw quantities. `to_elmer()` evaluates them at a reference operating point and strips to SI:
 
 ```python
 class ThermalProperties(BaseModel):
@@ -186,31 +153,21 @@ class ThermalProperties(BaseModel):
 ```
 
 Key points:
-- `at` is the operating point (e.g. `{"temperature": 300*U.K}`) supplied by the
-  Elmer generator / physics preset. Static properties ignore it; Calibration and
-  ClosedForm consume it.
-- For genuinely temperature-*dependent* Elmer runs, a later enhancement can emit
-  Elmer's own tabular dependency syntax (`Heat Conductivity = Variable Temperature; Real ...`)
-  by sampling the `PropertyFunction` across a range — the calibration points map
-  almost directly onto Elmer's `Real` interpolation tables. Note this future path
-  in the roadmap; first pass just evaluates at a fixed `at`.
+- `at` is the operating point (e.g. `{"temperature": 300*U.K}`) supplied by the Elmer generator / physics preset. Static properties ignore it; Calibration and ClosedForm consume it.
+- For genuinely temperature-*dependent* Elmer runs, a later enhancement can emit Elmer's own tabular dependency syntax (`Heat Conductivity = Variable Temperature; Real ...`) by sampling the `PropertyFunction` across a range — the calibration points map almost directly onto Elmer's `Real` interpolation tables. Note this future path in the roadmap; first pass just evaluates at a fixed `at`.
 
 ## Errors (typed, graceful — request 4)
 
-Dedicated exception types, not bare `ValueError`, so callers can catch precisely
-and messages are actionable:
+Dedicated exception types, not bare `ValueError`, so callers can catch precisely and messages are actionable:
 
-- `PropertyParameterError(fn, missing)` — "Calibration property needs
-  `temperature` ([temperature]); not supplied."
-- `PropertyDimensionError(fn, name, expected, got)` — "`temperature` expected
-  [temperature], got [length]."
+- `PropertyParameterError(fn, missing)` — "Calibration property needs `temperature` ([temperature]); not supplied."
+- `PropertyDimensionError(fn, name, expected, got)` — "`temperature` expected [temperature], got [length]."
 
 ## Testing (lands with the feature — request 3)
 
 In `tests/physical/` (pytest already wired via UV):
 - `Static` returns its value; ignores extra kwargs or rejects them (decide).
-- `Calibration` interpolates a known 2-point line exactly at endpoints and
-  midpoint; rejects a point whose units mismatch `param_dims`.
+- `Calibration` interpolates a known 2-point line exactly at endpoints and midpoint; rejects a point whose units mismatch `param_dims`.
 - `ClosedForm` evaluates `Br(T)` and round-trips units.
 - Missing/!wrong-dimension parameter raises the typed errors above.
 - `to_elmer(at=...)` produces the right SI float for each kind.
@@ -223,5 +180,4 @@ In `tests/physical/` (pytest already wired via UV):
 - [x] Implement `Calibration` (1-D) + `ClosedForm` (Callable form).
 - [x] Switch `*.to_elmer()` to evaluate at an `at` operating point.
 - [x] Tests above, all passing under `uv run pytest`.
-- [x] (Defer) N-D calibration, string-expression closed form, Elmer tabular
-      dependency emission — noted as parking-lot in [04-roadmap.md](04-roadmap.md).
+- [x] (Defer) N-D calibration, string-expression closed form, Elmer tabular dependency emission — noted as parking-lot in [04-roadmap.md](04-roadmap.md).

@@ -25,11 +25,9 @@ from physical.units import (
 
 MU0 = 1.25663706212e-6  # H/m (N/A^2)
 
-# Property-field types: each material property is a PropertyFunction (static
-# value, calibration points, or closed form) of a declared dimensionality. A
-# bare quantity assigned to one of these fields is coerced into a Static (doc 05);
-# the dimensionality is validated at construction either way. The dimensionality
-# strings come from the single vocabulary in physical.units (no re-spelling).
+# Property-field types: each material property is a PropertyFunction (static value, calibration points, or closed form) of a declared dimensionality.
+# A bare quantity assigned to one of these fields is coerced into a Static (doc 05); the dimensionality is validated at construction either way.
+# The dimensionality strings come from the single vocabulary in physical.units (no re-spelling).
 _DensityPF = property_function_type(DIM_DENSITY)
 _PressurePF = property_function_type(DIM_PRESSURE)
 _ThermalConductivityPF = property_function_type(DIM_THERMAL_CONDUCTIVITY)
@@ -46,14 +44,12 @@ _PermeabilityPF = property_function_type(DIM_PERMEABILITY)
 
 
 def _si(prop: Optional[PropertyFunction], unit: Any, at: Mapping[str, Quantity]) -> Optional[float]:
-    """Evaluate a property function at operating point ``at`` and strip to a bare
-    SI float in ``unit``.
+    """
+    Evaluate a property function at operating point ``at`` and strip to a bare SI float in ``unit``.
 
-    ``prop`` is a PropertyFunction or None; ``unit`` is the target pint unit;
-    ``at`` is the operating point (e.g. ``{"temperature": 300 * U.K}``). Static
-    properties ignore ``at``; Calibration / ClosedForm consume it. Typed as
-    ``Any`` for the pint unit because pint's Quantity / Unit aren't generic and
-    over-specifying here adds noise without safety.
+    ``prop`` is a PropertyFunction or None; ``unit`` is the target pint unit; ``at`` is the operating point (e.g. ``{"temperature": 300 * U.K}``).
+    Static properties ignore ``at``; Calibration / ClosedForm consume it.
+    Typed as ``Any`` for the pint unit because pint's Quantity / Unit aren't generic and over-specifying here adds noise without safety.
     """
     if prop is None:
         return None
@@ -61,9 +57,9 @@ def _si(prop: Optional[PropertyFunction], unit: Any, at: Mapping[str, Quantity])
 
 
 class _PropertyModel(BaseModel):
-    """Base for per-domain property models. Holds real pint quantities and
-    validates on assignment so the material-definition authoring style stays
-    honest (a wrong-dimensionality value raises at the point of assignment)."""
+    """
+    Base for per-domain property models. Holds real pint quantities and validates on assignment so the material-definition authoring style stays honest (a wrong-dimensionality value raises at the point of assignment).
+    """
 
     model_config = ConfigDict(arbitrary_types_allowed=True, validate_assignment=True)
 
@@ -117,12 +113,12 @@ class MagneticProperties(_PropertyModel):
         return d
 
     def magnetization_magnitude(self, *, at: Mapping[str, Quantity]) -> Optional[float]:
-        """|M| = Bᵣ/μ₀ in A/m, evaluating the remanence at operating point ``at``.
+        """
+        |M| = Bᵣ/μ₀ in A/m, evaluating the remanence at operating point ``at``.
 
-        Returns None for a non-magnet (no remanence). Temperature-dependent
-        remanence is honoured here because ``at`` flows into the property
-        function — a Calibration/ClosedForm remanence yields a temperature-correct
-        magnitude; a Static one ignores ``at``."""
+        Returns None for a non-magnet (no remanence).
+        Temperature-dependent remanence is honoured here because ``at`` flows into the property function — a Calibration/ClosedForm remanence yields a temperature-correct magnitude; a Static one ignores ``at``.
+        """
         br: Optional[float] = _si(self.remanence, U.T, at)
         if br is None:
             return None
@@ -165,8 +161,7 @@ class MaterialProperties(_PropertyModel):
 
     @property
     def is_magnet(self) -> bool:
-        # A magnet is a material with a remanence; |M| itself depends on the
-        # operating point, so presence (not magnitude) is the kind test here.
+        # A magnet is a material with a remanence; |M| itself depends on the operating point, so presence (not magnitude) is the kind test here.
         return self.magnetic.remanence is not None
 
     def print_tree(self, tree: Tree | None = None):

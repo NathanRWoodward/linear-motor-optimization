@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Guard against silently truncated / corrupted text files.
+"""
+Guard against silently truncated / corrupted text files.
 
-The workspace file mount has occasionally handed back stale or partially-flushed
-copies of a file; saving one back drops its tail. Code is protected by the test
-suite (truncation throws a SyntaxError), but docs and config are not. This script
-catches the two reliable symptoms before they get committed:
+The workspace file mount has occasionally handed back stale or partially-flushed copies of a file; saving one back drops its tail.
+Code is protected by the test suite (truncation throws a SyntaxError), but docs and config are not.
+This script catches the two reliable symptoms before they get committed:
 
   1. NUL bytes in a text file (a sign of a bad encoding / partial write), and
   2. a tracked file that shrank by more than a threshold vs HEAD (the signal that
@@ -14,10 +14,8 @@ Usage:
     python scripts/check_truncation.py            # check staged files (pre-commit)
     python scripts/check_truncation.py --all      # check all tracked text files
 
-Exit code is non-zero if any problem is found, so it works as a pre-commit hook
-or a CI step. A legitimately large deletion can be acknowledged with
-`--allow-shrink <path>` (repeatable) or by setting the env var
-TRUNCATION_ALLOW_SHRINK to a comma-separated list of paths.
+Exit code is non-zero if any problem is found, so it works as a pre-commit hook or a CI step.
+A large deletion can be acknowledged with `--allow-shrink <path>` (repeatable) or via env var TRUNCATION_ALLOW_SHRINK (comma-separated paths).
 """
 
 from __future__ import annotations

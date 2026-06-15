@@ -1,24 +1,18 @@
-"""Material properties as pint-aware callables (doc 05).
+"""
+Material properties as pint-aware callables (doc 05).
 
-A material property is not always a constant: remanence, conductivity, elastic
-modulus etc. can depend on temperature (and sometimes other quantities). Every
-property is therefore modelled as a **callable taking zero or more named pint
-quantities and returning a pint quantity**, with three concrete kinds of
-increasing richness:
+A material property is not always a constant: remanence, conductivity, elastic modulus etc. can depend on temperature (and sometimes other quantities).
+Every property is therefore modelled as a **callable taking zero or more named pint quantities and returning a pint quantity**, with three concrete kinds of increasing richness:
 
 * :class:`Static`      – 0 parameters, a constant value.
 * :class:`Calibration` – interpolation from sample points (1-D for now).
 * :class:`ClosedForm`  – an explicit Python callable (pint-in / pint-out).
 
-All three satisfy the :class:`PropertyFunction` protocol, so a property's *call
-site* never cares which kind it is. The ``parameters`` mapping (name ->
-dimensionality string) *is* the schema: it tells a caller exactly what to pass
-and in what units, with no magic words (doc 06).
+All three satisfy the :class:`PropertyFunction` protocol, so a property's *call site* never cares which kind it is.
+The ``parameters`` mapping (name -> dimensionality string) *is* the schema: it tells a caller exactly what to pass and in what units, with no magic words (doc 06).
 
-Why a Protocol *and* Pydantic models: the call contract is hot-path behaviour,
-expressed as a ``typing.Protocol``; the concrete carriers hold validated config
-data (a constant, calibration points, a formula) and so are Pydantic models with
-a shared validation base. This mirrors the doc 06 split.
+Why a Protocol *and* Pydantic models: the call contract is hot-path behaviour, expressed as a ``typing.Protocol``; the concrete carriers hold validated config data (a constant, calibration points, a formula) and so are Pydantic models with a shared validation base.
+This mirrors the doc 06 split.
 """
 
 from __future__ import annotations
@@ -47,8 +41,7 @@ __all__ = [
 
 
 # ---------------------------------------------------------------------------
-# Typed errors (doc 05 "request 4"): dedicated types, not bare ValueError, so
-# callers can catch precisely and messages are actionable.
+# Typed errors (doc 05 "request 4"): dedicated types, not bare ValueError, so callers can catch precisely and messages are actionable.
 # ---------------------------------------------------------------------------
 
 
@@ -94,19 +87,20 @@ class PropertyRangeError(PropertyError):
 
 @runtime_checkable
 class PropertyFunction(Protocol):
-    """A material property as a function of zero or more pint quantities.
+    """
+    A material property as a function of zero or more pint quantities.
 
-    Calling it with the required parameters returns a pint Quantity in the
-    property's own units. Parameters are passed by name and are themselves pint
-    quantities, so callers cannot mix up argument order or units.
+    Calling it with the required parameters returns a pint Quantity in the property's own units.
+    Parameters are passed by name and are themselves pint quantities, so callers cannot mix up argument order or units.
     """
 
     @property
     def parameters(self) -> Mapping[str, str]:
-        """Required parameter name -> expected dimensionality (pint string).
+        """
+        Required parameter name -> expected dimensionality (pint string).
 
-        Empty for a :class:`Static` property. This IS the schema: it tells a
-        caller exactly what to pass and in what units."""
+        Empty for a :class:`Static` property. This IS the schema: it tells a caller exactly what to pass and in what units.
+        """
         ...
 
     @property
@@ -115,20 +109,16 @@ class PropertyFunction(Protocol):
         ...
 
     def __call__(self, **kwargs: Quantity) -> Quantity:
-        """Evaluate. Raises a typed error if a required parameter is missing or
-        has the wrong dimensionality."""
+        """Evaluate. Raises a typed error if a required parameter is missing or has the wrong dimensionality."""
         ...
 
 
 class BasePropertyFunction(BaseModel):
-    """Pydantic base that implements parameter checking once.
+    """
+    Pydantic base that implements parameter checking once.
 
-    Subclasses declare ``parameters`` / ``result_dimensionality`` and implement
-    ``_evaluate``; the shared ``__call__`` validates the supplied quantities
-    against ``parameters`` (raising the typed errors above) and then delegates.
-    Extra keyword arguments are ignored, so an operating point carrying more
-    quantities than a given property needs (e.g. ``temperature`` passed to a
-    Static property) is harmless.
+    Subclasses declare ``parameters`` / ``result_dimensionality`` and implement ``_evaluate``; the shared ``__call__`` validates the supplied quantities against ``parameters`` (raising the typed errors above) and then delegates.
+    Extra keyword arguments are ignored, so an operating point carrying more quantities than a given property needs (e.g. ``temperature`` passed to a Static property) is harmless.
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -173,10 +163,10 @@ def _as_quantity(v: Any) -> Quantity:
 
 
 class Static(BasePropertyFunction):
-    """A constant property: zero parameters, always returns ``value``.
+    """
+    A constant property: zero parameters, always returns ``value``.
 
-    This is the migration target for every current scalar property
-    (``Static(value="8.7 W/(m*K)")``). It ignores any operating-point arguments.
+    This is the migration target for every current scalar property (``Static(value="8.7 W/(m*K)")``). It ignores any operating-point arguments.
     """
 
     value: Quantity
@@ -228,10 +218,10 @@ class CalibrationPoint(BaseModel):
 
 
 def _interpolate_1d(x: float, xs: list[float], ys: list[float], method: str, fn: "Calibration", name: str, extrapolate: bool) -> float:
-    """Interpolate ``ys`` at ``x`` over sorted-by-``xs`` samples.
+    """
+    Interpolate ``ys`` at ``x`` over sorted-by-``xs`` samples.
 
-    Shared numeric core so the unit handling in ``Calibration._evaluate`` stays
-    separate from the interpolation maths. ``xs`` need not be pre-sorted.
+    Shared numeric core so the unit handling in ``Calibration._evaluate`` stays separate from the interpolation maths. ``xs`` need not be pre-sorted.
     """
     order: list[int] = sorted(range(len(xs)), key=lambda i: xs[i])
     xs_sorted: list[float] = [xs[i] for i in order]
@@ -239,8 +229,7 @@ def _interpolate_1d(x: float, xs: list[float], ys: list[float], method: str, fn:
     if not extrapolate and (x < xs_sorted[0] or x > xs_sorted[-1]):
         raise PropertyRangeError(fn, name, value=x, low=xs_sorted[0], high=xs_sorted[-1])
     if method == "linear":
-        # np.interp clamps to the endpoints outside the range, which is exactly
-        # the desired behaviour once extrapolate=True has let us through.
+        # np.interp clamps to the endpoints outside the range, which is exactly the desired behaviour once extrapolate=True has let us through.
         return float(np.interp(x, xs_sorted, ys_sorted))
     if method == "nearest":
         idx: int = min(range(len(xs_sorted)), key=lambda i: abs(xs_sorted[i] - x))
@@ -250,14 +239,12 @@ def _interpolate_1d(x: float, xs: list[float], ys: list[float], method: str, fn:
 
 
 class Calibration(BasePropertyFunction):
-    """A property defined by sample points and interpolated between them.
+    """
+    A property defined by sample points and interpolated between them.
 
-    1-D only for now (a single parameter, e.g. temperature); the signature
-    already admits N-D so the call site does not change when N-D lands. Each
-    point's inputs are validated against ``param_dims`` (by name and
-    dimensionality) at construction, so a typo or unit mistake fails immediately
-    rather than deep inside a solve. Out-of-range behaviour is explicit via
-    ``extrapolate``.
+    1-D only for now (a single parameter, e.g. temperature); the signature already admits N-D so the call site does not change when N-D lands.
+    Each point's inputs are validated against ``param_dims`` (by name and dimensionality) at construction, so a typo or unit mistake fails immediately rather than deep inside a solve.
+    Out-of-range behaviour is explicit via ``extrapolate``.
     """
 
     param_dims: dict[str, str]
@@ -311,12 +298,11 @@ class Calibration(BasePropertyFunction):
 
 
 class ClosedForm(BasePropertyFunction):
-    """A property defined by an explicit Python callable, pint-in / pint-out.
+    """
+    A property defined by an explicit Python callable, pint-in / pint-out.
 
-    ``expression`` receives exactly the declared parameters by name and returns
-    a pint Quantity, e.g. ``Br(T) = Br0 * (1 + alpha * (T - T0))``. The callable
-    is code, not JSON-serializable — an accepted v1 trade-off (doc 05). A
-    string/expression mini-language is parked (doc 04).
+    ``expression`` receives exactly the declared parameters by name and returns a pint Quantity, e.g. ``Br(T) = Br0 * (1 + alpha * (T - T0))``.
+    The callable is code, not JSON-serializable — an accepted v1 trade-off (doc 05). A string/expression mini-language is parked (doc 04).
     """
 
     param_dims: dict[str, str]
@@ -344,19 +330,15 @@ class ClosedForm(BasePropertyFunction):
 # Pydantic field type: a property of a declared dimensionality.
 #
 # Mirrors physical.units.quantity_type, but the *value* is a PropertyFunction.
-# A bare quantity / unit-string is coerced into a Static so the authoring style
-# `thermal.conductivity = 8.7 * U.W/(U.m*U.K)` keeps working; a Static /
-# Calibration / ClosedForm is accepted as-is. In every case the function's
-# result dimensionality is validated against the field's declared dimensionality
-# at construction (a wrong-dimensionality property fails here, not at solve time).
+# A bare quantity / unit-string is coerced into a Static so the authoring style `thermal.conductivity = 8.7 * U.W/(U.m*U.K)` keeps working; a Static / Calibration / ClosedForm is accepted as-is.
+# In every case the function's result dimensionality is validated against the field's declared dimensionality at construction (a wrong-dimensionality property fails here, not at solve time).
 # ---------------------------------------------------------------------------
 
 
 def _serialize_property_function(fn: PropertyFunction) -> Any:
-    """Serialize a property-function field. Static round-trips through its unit
-    string (matching quantity_type's format); richer kinds are returned as-is
-    for in-session (python-mode) round-trips — JSON serialization of code-bearing
-    forms is deferred (doc 05)."""
+    """
+    Serialize a property-function field. Static round-trips through its unit string (matching quantity_type's format); richer kinds are returned as-is for in-session (python-mode) round-trips — JSON serialization of code-bearing forms is deferred (doc 05).
+    """
     if isinstance(fn, Static):
         q: Quantity = fn.value
         return f"{q.magnitude} {q.units:~}"
@@ -364,10 +346,10 @@ def _serialize_property_function(fn: PropertyFunction) -> Any:
 
 
 def property_function_type(dimensionality: str):
-    """A :class:`PropertyFunction` constrained to ``dimensionality``, usable as a
-    Pydantic field. Coerces bare quantities/strings into :class:`Static`,
-    validates the function's result dimensionality, and exports the same
-    unit-annotated JSON schema as ``quantity_type``."""
+    """
+    A :class:`PropertyFunction` constrained to ``dimensionality``, usable as a Pydantic field.
+    Coerces bare quantities/strings into :class:`Static`, validates the function's result dimensionality, and exports the same unit-annotated JSON schema as ``quantity_type``.
+    """
 
     class _PF:
         @classmethod

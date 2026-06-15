@@ -10,8 +10,8 @@ from physical.materials.properties import MaterialProperties, ThermalProperties
 from physical.materials.registry import all_materials, available_materials, material
 from physical.units import U
 
-# Operating point for stripping property functions to SI (doc 05). The migrated
-# materials are all Static, so the point is ignored, but to_elmer now requires it.
+# Operating point for stripping property functions to SI (doc 05).
+# The migrated materials are all Static, so the point is ignored, but to_elmer now requires it.
 AT = {"temperature": 300 * U.K}
 
 

@@ -1,4 +1,5 @@
-"""Phase 0: the pint <-> Pydantic keystone (`quantity_type`) and its aliases.
+"""
+Phase 0: the pint <-> Pydantic keystone (`quantity_type`) and its aliases.
 
 Pure-logic tests: no gmsh / build123d imports, so they run anywhere.
 """
@@ -52,8 +53,7 @@ def test_round_trip_preserves_quantity():
 
 
 def test_serialized_form_is_ascii_parseable():
-    # The serializer must emit something pint can read back (no unicode
-    # superscripts, no Rich markup) so model_dump JSON survives a round trip.
+    # The serializer must emit something pint can read back (no unicode superscripts, no Rich markup) so model_dump JSON survives a round trip.
     dumped = _sample().model_dump()
     assert U.Quantity(dumped["density"]).check("[mass]/[length]**3")
     assert "³" not in dumped["density"]

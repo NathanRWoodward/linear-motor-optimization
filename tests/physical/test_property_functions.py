@@ -1,4 +1,5 @@
-"""Phase 1: property functions (Static / Calibration / ClosedForm).
+"""
+Phase 1: property functions (Static / Calibration / ClosedForm).
 
 Pure-logic tests (no gmsh / build123d), so they run in the Linux sandbox too.
 """
@@ -30,8 +31,7 @@ def test_static_returns_its_value():
 
 
 def test_static_ignores_operating_point_kwargs():
-    # Static takes 0 parameters, so an operating point (extra kwargs) is ignored
-    # rather than rejected — this is what lets to_elmer(at=...) call it uniformly.
+    # Static takes 0 parameters, so an operating point (extra kwargs) is ignored, not rejected — this is what lets to_elmer(at=...) call it uniformly.
     k = Static(value=8.7 * U.W / (U.m * U.K))
     assert k(temperature=300 * U.K).magnitude == pytest.approx(8.7)
 
@@ -45,8 +45,7 @@ def test_static_accepts_unit_string():
 
 
 def _two_point_line() -> Calibration:
-    # A known straight line: y = 1 + 0.05*(T - 300) [W/(m*K)] sampled at 300 K
-    # (-> 1.0) and 400 K (-> 6.0). Endpoints chosen so the midpoint is exact.
+    # A known straight line: y = 1 + 0.05*(T - 300) [W/(m*K)] sampled at 300 K (-> 1.0) and 400 K (-> 6.0). Endpoints chosen so the midpoint is exact.
     return Calibration(
         param_dims={"temperature": "[temperature]"},
         points=[
@@ -172,8 +171,7 @@ def test_wrong_dimension_parameter_raises_typed_error():
 
 
 def test_typed_errors_are_not_bare_value_errors():
-    # They subclass PropertyError (and not ValueError), so callers can catch the
-    # property-function family precisely.
+    # They subclass PropertyError (and not ValueError), so callers can catch the property-function family precisely.
     assert not issubclass(PropertyParameterError, ValueError)
     assert not issubclass(PropertyDimensionError, ValueError)
 
@@ -204,9 +202,7 @@ def test_to_elmer_strips_to_si_float_for_each_kind():
 def test_property_field_rejects_wrong_dimensionality_property():
     from physical.materials.properties import ThermalProperties
 
-    # A Static of the wrong dimensionality assigned to a thermal-conductivity
-    # field must fail at construction (the field validates result dimensionality),
-    # not silently at solve time.
+    # A wrong-dimensionality Static on a thermal-conductivity field must fail at construction (the field validates dimensionality), not at solve time.
     from pydantic import ValidationError
 
     with pytest.raises(ValidationError):

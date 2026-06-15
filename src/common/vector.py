@@ -114,7 +114,8 @@ class Vec3:
         return math.sqrt(self.x**2 + self.y**2 + self.z**2)
 
     def normalized(self) -> "Vec3":
-        """Return a unit vector in the same direction.
+        """
+        Return a unit vector in the same direction.
 
         Raises ``ValueError`` for a zero-length vector (which has no direction).
         Callers that want to tolerate zero should check ``magnitude()`` first.

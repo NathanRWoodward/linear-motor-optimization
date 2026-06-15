@@ -1,5 +1,6 @@
-"""conditions_for — the dedup utility that resolves which conditions of a given
-(physics, target) apply to a region's tags."""
+"""
+conditions_for — the dedup utility that resolves which conditions of a given (physics, target) apply to a region's tags.
+"""
 
 from common.vector import Vec3
 from elmer.physics import Physics

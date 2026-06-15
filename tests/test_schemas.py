@@ -1,5 +1,7 @@
-"""Phase 0: schema-as-a-deliverable. The committed docs/schema/*.json must stay
-in sync with the models (regenerate with `python -m schemas --out docs/schema`)."""
+"""
+Phase 0: schema-as-a-deliverable.
+The committed docs/schema/*.json must stay in sync with the models (regenerate with `python -m schemas --out docs/schema`).
+"""
 
 import json
 from pathlib import Path

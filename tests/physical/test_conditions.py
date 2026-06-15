@@ -1,8 +1,8 @@
-"""Phase 2: composable conditions (doc 02, body half).
+"""
+Phase 2: composable conditions (doc 02, body half).
 
 Pure-logic tests (no gmsh / build123d), so they run in the Linux sandbox too:
-each condition's ``to_elmer()`` round-trip, the discriminated-union
-serialization round-trip, and the normalization behaviour of ``Magnetization``.
+each condition's ``to_elmer()`` round-trip, the discriminated-union serialization round-trip, and the normalization behaviour of ``Magnetization``.
 """
 
 import math
@@ -48,9 +48,7 @@ def test_magnetization_scales_unit_direction():
 
 
 def test_magnetization_normalizes_non_unit_direction():
-    # A non-unit (and non-axis-aligned) direction must be normalized before
-    # scaling, so |M| ends up equal to the requested magnitude regardless of how
-    # the direction vector was authored.
+    # A non-unit, non-axis-aligned direction must be normalized before scaling, so |M| equals the requested magnitude no matter how it was authored.
     cond = Magnetization(direction=Vec3(3, 4, 0))  # |v| = 5
     data = cond.to_elmer(magnitude=10.0)
     mx, my, mz = (float(data[f"Magnetization {i}"]) for i in (1, 2, 3))

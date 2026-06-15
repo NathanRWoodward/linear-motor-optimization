@@ -10,12 +10,11 @@ from physical.materials.properties import MaterialProperties
 
 
 def conditions_for(tags: Iterable["EntityTag"], physics: Physics, target: ConditionTarget) -> list[Condition]:
-    """Resolve the conditions of a given (physics, target) that apply to a region.
+    """
+    Resolve the conditions of a given (physics, target) that apply to a region.
 
-    Gathers every tag's ``conditions`` and keeps only those matching ``physics``
-    and ``target``. This is the uniform "find the conditions a region carries"
-    lookup the sif writer's per-physics wiring uses, so the filter lives in one
-    place rather than being re-derived at each call site.
+    Gathers every tag's ``conditions`` and keeps only those matching ``physics`` and ``target``.
+    This is the uniform "find the conditions a region carries" lookup the sif writer's per-physics wiring uses, so the filter lives in one place rather than being re-derived at each call site.
     """
     matching: list[Condition] = []
     for tag in tags:
@@ -26,15 +25,11 @@ def conditions_for(tags: Iterable["EntityTag"], physics: Physics, target: Condit
 
 
 class EntityTag(BaseModel):
-    """A per-region override matched to a mesh entity by name.
+    """
+    A per-region override matched to a mesh entity by name.
 
-    Carries information that is not a material property but still needs to reach
-    the solver for a specific region, as a list of composable, self-describing
-    `conditions` (doc 02): a `Magnetization` body force for a magnet block, a
-    `FixedTemperature` boundary, etc. Each condition knows its physics, its
-    body/boundary target, and how to emit its own Elmer keywords — so a region
-    carries only the conditions it actually has, with no flat bag of optional
-    scalars.
+    Carries information that is not a material property but still needs to reach the solver for a specific region, as a list of composable, self-describing `conditions` (doc 02): a `Magnetization` body force for a magnet block, a `FixedTemperature` boundary, etc.
+    Each condition knows its physics, its body/boundary target, and how to emit its own Elmer keywords — so a region carries only the conditions it actually has, with no flat bag of optional scalars.
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)

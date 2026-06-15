@@ -158,12 +158,8 @@ def quantity_type(dimensionality: str):
 
 
 # --- dimensionality vocabulary (single source of truth) --------------------
-# The dimensionality strings are named once here so both the quantity_type
-# aliases below and the property-function field types (physical.property_functions)
-# reference the same string rather than re-spelling it (README: "factor out
-# repeated patterns"). A bracketed pint dimensionality is the "schema" for a
-# field; spelling one differently in two places is exactly the duplication to
-# avoid.
+# The dimensionality strings are named once here so both the quantity_type aliases below and the property-function field types (physical.property_functions) reference the same string rather than re-spelling it (README: "factor out repeated patterns").
+# A bracketed pint dimensionality is the "schema" for a field; spelling one differently in two places is exactly the duplication to avoid.
 DIM_TEMPERATURE: str = "[temperature]"
 DIM_THERMAL_CONDUCTIVITY: str = "[power]/[length]/[temperature]"
 DIM_SPECIFIC_HEAT: str = "[energy]/[mass]/[temperature]"
@@ -185,10 +181,10 @@ _DIMENSIONLESS = (1 * U.dimensionless).dimensionality
 
 
 def _dimensionality(spec: str):
-    """Parse a pint dimensionality string to a UnitsContainer for comparison.
+    """
+    Parse a pint dimensionality string to a UnitsContainer for comparison.
 
-    Handles the dimensionless spellings ('' and 'dimensionless'), which pint's
-    ``get_dimensionality`` cannot parse directly.
+    Handles the dimensionless spellings ('' and 'dimensionless'), which pint's ``get_dimensionality`` cannot parse directly.
     """
     s: str = spec.strip()
     if s in ("", "dimensionless"):
@@ -197,12 +193,11 @@ def _dimensionality(spec: str):
 
 
 def dimensionality_matches(expected: str, got: str) -> bool:
-    """True if two pint dimensionality strings denote the same dimensionality.
+    """
+    True if two pint dimensionality strings denote the same dimensionality.
 
-    Compares parsed dimensionalities, not raw text, so equivalent spellings
-    (e.g. ``"[power]/[length]/[temperature]"`` vs the ``str()`` of a quantity's
-    ``.dimensionality``) match. Used to check that a property function's
-    ``result_dimensionality`` is compatible with the field it is assigned to.
+    Compares parsed dimensionalities, not raw text, so equivalent spellings (e.g. ``"[power]/[length]/[temperature]"`` vs the ``str()`` of a quantity's ``.dimensionality``) match.
+    Used to check that a property function's ``result_dimensionality`` is compatible with the field it is assigned to.
     """
     return _dimensionality(expected) == _dimensionality(got)
 
